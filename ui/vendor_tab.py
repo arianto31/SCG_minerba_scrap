@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import streamlit as st
 
+from core.phone import with_whatsapp_links
 from core.schema import AUTO_TAG
 from core.validation import ValidationSettings, validate_vendors
 from repositories import vendor_repository
@@ -46,15 +47,15 @@ def render(df_minerba: pd.DataFrame) -> None:
 
 # ------------------------------------------------------------------ persiapan
 def _schema_ready() -> bool:
-    """Pastikan kolom `kategori` ada; jika belum, tampilkan SQL yang harus dijalankan."""
+    """Pastikan kolom `kategori` dan `golongan` ada; jika belum, tampilkan SQL yang harus dijalankan."""
     if state.KEY_SCHEMA_OK not in st.session_state:
         st.session_state[state.KEY_SCHEMA_OK] = vendor_repository.schema_ready()
     if st.session_state[state.KEY_SCHEMA_OK]:
         return True
 
     st.error(
-        "Fitur banyak tabel butuh kolom `kategori` di tabel `vendor_procurement`. "
-        "Jalankan SQL berikut sekali di Supabase (SQL Editor), lalu klik tombol di bawah."
+        "Tabel `vendor_procurement` belum punya kolom baru (`kategori` untuk banyak tabel, `golongan`). "
+        "Jalankan SQL berikut di Supabase (SQL Editor; aman dijalankan ulang), lalu klik tombol di bawah."
     )
     st.code(vendor_repository.schema_migration_sql(), language="sql")
     if st.button("🔁 Sudah dijalankan, cek lagi"):
@@ -100,8 +101,8 @@ def _render_summary(saved_df: pd.DataFrame) -> None:
 
 
 def _render_colored_table(ctx: state.VendorContext) -> None:
-    st.dataframe(style_rows(ctx.saved_df), use_container_width=True, height=460,
-                 column_config=build_vendor_column_config())
+    st.dataframe(style_rows(with_whatsapp_links(ctx.saved_df)), width="stretch", height=460,
+                 column_config=build_vendor_column_config(whatsapp_links=True))
 
     slug = re.sub(r"[^A-Za-z0-9]+", "_", ctx.table).strip("_").lower() or "vendor"
     st.download_button(

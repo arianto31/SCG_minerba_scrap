@@ -22,6 +22,7 @@ KEY_EXCEL_UPLOAD_VER = "upload_ver"
 KEY_DOC_UPLOAD_VER = "doc_upload_ver"
 KEY_DOC_RESULT = "doc_result"
 KEY_DOC_COUNTER = "doc_counter"
+KEY_SCRAPE_SUMMARY = "scrape_summary"   # ringkasan pembaruan ESDM terakhir
 
 
 @dataclass

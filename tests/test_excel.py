@@ -46,6 +46,38 @@ class ExcelTest(unittest.TestCase):
         self.assertEqual(df.loc[2, "nib_tanggal"], "2019-10-01")
         self.assertEqual(df.loc[1, "iup_countdown"], "")         # dihitung ulang sistem
 
+    def test_golongan_follows_nib_nomor_and_round_trips(self):
+        df = pd.DataFrame([{**{c: "" for c in DB_COLS}, "vendor": "ABADI", "nib_nomor": "123",
+                            "golongan": "Fly Ash", "nib_tanggal": "2019-01-30"}])
+        self.assertEqual(DB_COLS.index("golongan"), DB_COLS.index("nib_nomor") + 1)
+
+        data = build_excel(df, "Vendor")
+        sheet = load_workbook(io.BytesIO(data)).active
+        row2 = [c.value for c in sheet[2]]
+        row1 = [c.value for c in sheet[1]]
+        self.assertEqual(row2[row1.index("GOLONGAN")], None)             # kolom tunggal digabung 2 baris
+        again = parse_vendor_excel(data).data
+        self.assertEqual(again.loc[1, "golongan"], "Fly Ash")
+        self.assertEqual(again.loc[1, "nib_tanggal"], "2019-01-30")      # NIB yang terpisah tetap terbaca
+        self.assertEqual(again.loc[1, "nib_nomor"], "123")
+
+    def test_flat_header_with_golongan_alias(self):
+        wb = Workbook()
+        wb.active.append(["VENDOR", "GOLONGAN USAHA", "IUP NAMA"])
+        wb.active.append(["ABADI", "Pasir", "PT X"])
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        self.assertEqual(parse_vendor_excel(buffer.getvalue()).data.loc[1, "golongan"], "Pasir")
+
+    def test_contact_becomes_whatsapp_hyperlink_in_excel(self):
+        df = pd.DataFrame([{**{c: "" for c in DB_COLS}, "vendor": "A", "no_kontak": "0812-3456-7890"},
+                           {**{c: "" for c in DB_COLS}, "vendor": "B", "no_kontak": "Pak Budi"}])
+        sheet = load_workbook(io.BytesIO(build_excel(df))).active
+        col = [c.value for c in sheet[1]].index("NO KONTAK") + 1
+        self.assertEqual(sheet.cell(row=3, column=col).value, "0812-3456-7890")
+        self.assertEqual(sheet.cell(row=3, column=col).hyperlink.target, "https://wa.me/6281234567890")
+        self.assertIsNone(sheet.cell(row=4, column=col).hyperlink)
+
     def test_missing_vendor_column_raises(self):
         wb = Workbook()
         wb.active.append(["A", "B"])

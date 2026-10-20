@@ -15,6 +15,7 @@ HEADER_ALIASES = {
     "namapic": "nama_pic", "pic": "nama_pic",
     "nokontak": "no_kontak", "kontak": "no_kontak", "nohp": "no_kontak", "nomorkontak": "no_kontak",
     "nibnomor": "nib_nomor", "nib": "nib_nomor",
+    "golongan": "golongan", "golonganusaha": "golongan", "jenisgolongan": "golongan",
     "nibtanggal": "nib_tanggal",
     "niblokasi": "nib_lokasi", "lokasi": "nib_lokasi",
     "suratdukungannomor": "surat_dukungan_nomor",

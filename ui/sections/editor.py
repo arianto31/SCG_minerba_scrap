@@ -28,7 +28,7 @@ def _render_editor(ctx: state.VendorContext):
     edited_raw = st.data_editor(
         ctx.working_df,
         num_rows="dynamic",
-        use_container_width=True,
+        width="stretch",
         height=460,
         column_config=build_vendor_column_config(),
         key=f"vendor_editor_{ctx.table}_{version}",

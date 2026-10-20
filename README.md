@@ -5,10 +5,10 @@ otomatis dari Excel atau dari foto/PDF dokumen (dibaca Gemini).
 
 ## Menjalankan
 
-1. Salin seluruh isi folder ini ke proyek Anda, **satu folder dengan `minerba_scraper.py`** (file scraper lama, tidak diubah).
+1. Salin seluruh isi folder ini ke proyek Anda (termasuk `minerba_scraper.py` versi cepat/async yang baru).
 2. `pip install -r requirements.txt`
 3. Salin `.env.example` menjadi `.env`, isi `SUPABASE_URL`, `SUPABASE_KEY`, dan (opsional) `GEMINI_API_KEY`.
-4. Jalankan isi `sql/schema.sql` sekali di Supabase (SQL Editor). Jika belum, aplikasi menampilkannya sendiri.
+4. Jalankan isi `sql/schema.sql` di Supabase (SQL Editor; aman dijalankan ulang). Jika kolom baru belum ada, aplikasi menampilkan SQL-nya sendiri.
 5. `streamlit run app.py`
 
 Tes: `python -m unittest discover -s tests -t .`
@@ -25,12 +25,16 @@ Lapisan `core`, `services`, dan `repositories` tidak mengimpor Streamlit, sehing
 | `core/schema.py` | Daftar kolom, label, konstanta | menambah/mengubah kolom vendor |
 | `core/validation.py` | Cocokkan ke Minerba, isi otomatis, countdown, remark | hasil Valid/"-" atau peringatan salah |
 | `core/text_utils.py` | Normalisasi nama, tanggal, angka | format tanggal/angka bermasalah |
+| `core/phone.py` | Nomor kontak -> link WhatsApp | link WA salah/kosong |
+| `core/filtering.py` | Filter tabel ESDM (tidak peka kapital) | filter tidak menemukan data |
 | `repositories/` | Semua akses Supabase | error database, query |
+| `minerba_scraper.py` | Scraper ESDM async + konkurensi adaptif | scraping lambat / error 429 / data ESDM kurang |
 | `services/excel_export.py` / `excel_import.py` | Baca/tulis Excel | Excel tidak terbaca / tata letak salah |
 | `services/document_ai/` | Ekstraksi dokumen dengan Gemini | hasil AI salah / ganti model |
 | `ui/vendor_tab.py`, `ui/minerba_tab.py` | Merangkai tab | urutan tampilan |
 | `ui/sections/` | Satu file = satu bagian layar | tombol/formulir tertentu |
-| `ui/styles.py` | Warna baris, konfigurasi kolom | tampilan tabel |
+| `ui/styles.py` | Warna baris, konfigurasi kolom (termasuk link WA) | tampilan tabel |
+| `ui/scrape_progress.py` | Kartu progres scraping (HTML/CSS) | tampilan progres |
 | `ui/state.py` | Kunci `session_state` & konteks bersama | state saling menimpa |
 | `tests/` | Unit test | setelah mengubah logika |
 

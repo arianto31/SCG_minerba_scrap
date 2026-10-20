@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from core.phone import to_whatsapp_url
 from core.schema import DATE_COLS, DB_COLS, REVERSE_MAPPING
 from core.text_utils import parse_date
 
@@ -21,6 +22,7 @@ _CENTER_PLAIN = Alignment(horizontal="center", vertical="center")
 _NUMERIC_COLS = ("iup_countdown", "iup_periode")
 _DATE_FORMAT = "DD/MM/YYYY"
 _FIRST_DATA_ROW = 3
+_LINK_FONT = Font(color="0563C1", underline="single")
 
 
 def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Data Vendor") -> bytes:
@@ -109,7 +111,14 @@ def _write_body(sheet, df: pd.DataFrame, positions: Dict[str, int], widths: Dict
 
 
 def _fill_cell(cell, db_col: str, text: str) -> None:
-    """Isi sel: tanggal sebagai tanggal asli, angka sebagai angka, lainnya sebagai teks."""
+    """Isi sel: tanggal sebagai tanggal asli, angka sebagai angka, kontak sebagai link WhatsApp, lainnya teks."""
+    if db_col == "no_kontak" and text:
+        cell.value = text
+        url = to_whatsapp_url(text)
+        if url:
+            cell.hyperlink = url
+            cell.font = _LINK_FONT
+        return
     if db_col in DATE_COLS and text:
         parsed = parse_date(text)
         if pd.notna(parsed):

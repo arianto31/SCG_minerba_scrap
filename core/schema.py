@@ -8,6 +8,7 @@ COLUMN_MAPPING: Dict[Tuple[str, str], str] = {
     ("NAMA PIC", ""): "nama_pic",
     ("NO KONTAK", ""): "no_kontak",
     ("NIB (NOMOR INDUK BERUSAHA)", "NOMOR"): "nib_nomor",
+    ("GOLONGAN", ""): "golongan",
     ("NIB (NOMOR INDUK BERUSAHA)", "TANGGAL"): "nib_tanggal",
     ("NIB (NOMOR INDUK BERUSAHA)", "LOKASI"): "nib_lokasi",
     ("SURAT DUKUNGAN", "NOMOR"): "surat_dukungan_nomor",

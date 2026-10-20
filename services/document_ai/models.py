@@ -42,7 +42,7 @@ DOCUMENT_TYPE_LABELS = {
 # sama dengan nama kolom database sehingga pemetaan tidak butuh tabel konversi.
 FILLABLE_COLUMNS = (
     "vendor",
-    "nib_nomor", "nib_tanggal", "nib_lokasi",
+    "nib_nomor", "golongan", "nib_tanggal", "nib_lokasi",
     "surat_dukungan_nomor", "surat_dukungan_tanggal", "surat_dukungan_lokasi_quarry",
     "iup_nomor", "iup_nama", "iup_bentuk_usaha",
     "iup_tanggal_terbit", "iup_periode", "iup_tanggal_berakhir",
@@ -62,6 +62,10 @@ class ExtractedDocument(BaseModel):
                     "Untuk dokumen IUP isi null (pemegang IUP bukan vendor)."
     )
     nib_nomor: Optional[str] = Field(description="Nomor NIB (13 digit) persis seperti tertulis.")
+    golongan: Optional[str] = Field(
+        description="Golongan/jenis bahan galian usaha sebagaimana tertulis (mis. Batuan, Pasir, Fly Ash). "
+                    "Null jika tidak tertulis."
+    )
     nib_tanggal: Optional[str] = Field(description="Tanggal terbit NIB, format YYYY-MM-DD.")
     nib_lokasi: Optional[str] = Field(description="Alamat/lokasi usaha pada NIB.")
     surat_dukungan_nomor: Optional[str] = Field(description="Nomor surat dukungan persis seperti tertulis.")

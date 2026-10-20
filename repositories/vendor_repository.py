@@ -15,9 +15,9 @@ _SCHEMA_FILE = Path(__file__).resolve().parent.parent / "sql" / "schema.sql"
 
 # ------------------------------------------------------------------ skema & daftar tabel
 def schema_ready() -> bool:
-    """True jika kolom `kategori` sudah ada."""
+    """True jika kolom `kategori` dan `golongan` sudah ada."""
     try:
-        get_client().table(VENDOR_TABLE).select("kategori").limit(1).execute()
+        get_client().table(VENDOR_TABLE).select("kategori,golongan").limit(1).execute()
         return True
     except Exception:
         return False

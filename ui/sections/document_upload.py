@@ -78,17 +78,17 @@ def _mime_type(uploaded_file) -> str:
 def _render_previews(documents: List[UploadedDocument]) -> None:
     images = [d for d in documents if d.mime_type.startswith("image/")]
     for column, image in zip(st.columns(_MAX_PREVIEW_IMAGES), images[:_MAX_PREVIEW_IMAGES]):
-        column.image(image.data, caption=image.name, use_container_width=True)
+        column.image(image.data, caption=image.name, width="stretch")
     pdfs = [d.name for d in documents if d.mime_type == "application/pdf"]
     if pdfs:
         st.caption("📄 PDF: " + ", ".join(pdfs))
 
 
 def _render_extract_button(documents: List[UploadedDocument]) -> None:
-    if not st.button("🔍 Ekstrak dengan AI", type="primary", key="doc_extract"):
+    if not st.button("🔍 Ekstrak dengan Gemini", type="primary", key="doc_extract"):
         return
     try:
-        with st.spinner("Sedang membaca dokumen..."):
+        with st.spinner("Gemini sedang membaca dokumen..."):
             document = create_extractor().extract(documents)
     except ExtractionError as exc:
         st.error(str(exc))
@@ -122,7 +122,7 @@ def _render_review(ctx: state.VendorContext, result: dict) -> None:
         return
 
     st.markdown("**Pratinjau hasil (sudah dicek ke Minerba):**")
-    st.dataframe(style_rows(target.preview), use_container_width=True, hide_index=True,
+    st.dataframe(style_rows(target.preview), width="stretch", hide_index=True,
                  column_config=build_vendor_column_config())
 
     if ctx.has_unsaved_edits:
@@ -138,7 +138,7 @@ def _render_value_editor(result: dict) -> Dict[str, str]:
         pd.DataFrame(rows),
         hide_index=True,
         disabled=["Kolom"],
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Kolom": st.column_config.TextColumn(width="medium"),
             "Nilai": st.column_config.TextColumn(width="large"),

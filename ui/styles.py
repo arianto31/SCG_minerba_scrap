@@ -7,19 +7,35 @@ from core.schema import AUTO_COLS, AUTO_TAG, DB_COLS, pretty_label
 ROW_RED = "background-color: rgba(239, 68, 68, 0.16)"
 ROW_YELLOW = "background-color: rgba(250, 204, 21, 0.20)"
 
+_WA_DISPLAY_TEXT = r"https://wa\.me/(.*)"  # tampilkan hanya nomornya, link tetap ke wa.me
+
 _COLUMN_WIDTHS = {
-    "vendor": "large", "nama_pic": "medium", "no_kontak": "medium",
+    "vendor": "large", "nama_pic": "medium", "no_kontak": "medium", "golongan": "medium",
     "nib_lokasi": "large", "surat_dukungan_lokasi_quarry": "large",
     "iup_nama": "large", "remark": "large",
     "minerbaone": "small", "smart_comp": "small", "iup_countdown": "small", "iup_periode": "small",
 }
 
 
-def build_vendor_column_config() -> dict:
-    """Label rapi, lebar sesuai isi, kolom otomatis dikunci, IUP NAMA di-freeze."""
+def build_vendor_column_config(whatsapp_links: bool = False) -> dict:
+    """
+    Label rapi, lebar sesuai isi, kolom otomatis dikunci, IUP NAMA di-freeze.
+    whatsapp_links=True: kolom No Kontak menjadi link WhatsApp (untuk tabel tampilan; data harus
+    sudah diubah dengan `core.phone.with_whatsapp_links`).
+    """
     config = {}
     for column in DB_COLS:
         options = dict(label=pretty_label(column), width=_COLUMN_WIDTHS.get(column, "medium"))
+        if column == "no_kontak":
+            if whatsapp_links:
+                options["help"] = "Klik untuk membuka chat WhatsApp."
+                config[column] = st.column_config.LinkColumn(display_text=_WA_DISPLAY_TEXT, **options)
+            else:
+                options["help"] = "Ketik nomor (0812... atau 62812...). Di tabel berwarna menjadi link WhatsApp."
+                config[column] = st.column_config.TextColumn(**options)
+            continue
+        if column == "golongan":
+            options["help"] = "Golongan usaha, mis. Batuan, Pasir, Fly Ash."
         if column in AUTO_COLS:
             options["disabled"] = True
             options["help"] = "Terisi otomatis dari data Minerba / perhitungan tanggal."

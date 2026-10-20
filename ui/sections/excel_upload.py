@@ -61,7 +61,7 @@ def _render_preview_and_import(ctx: state.VendorContext, result: ImportResult) -
         st.write(", ".join(f"**{label}** → {pretty_label(db)}" for label, db in result.mapped))
         if result.unmapped:
             st.warning("Kolom berikut tidak dikenali dan diabaikan: " + ", ".join(result.unmapped))
-    st.dataframe(style_rows(checked), use_container_width=True, height=300,
+    st.dataframe(style_rows(checked), width="stretch", height=300,
                  column_config=build_vendor_column_config())
 
     mode = st.radio("Cara impor", [_MODE_APPEND, _MODE_REPLACE], key=f"import_mode_{ctx.table}")

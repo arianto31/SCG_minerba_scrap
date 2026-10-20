@@ -18,7 +18,7 @@ from services.document_ai.models import MAX_TOTAL_BYTES
 
 IUP_PAYLOAD = {
     "document_type": "IUP", "vendor": None,
-    "nib_nomor": None, "nib_tanggal": None, "nib_lokasi": None,
+    "nib_nomor": None, "golongan": "Batuan", "nib_tanggal": None, "nib_lokasi": None,
     "surat_dukungan_nomor": None, "surat_dukungan_tanggal": None, "surat_dukungan_lokasi_quarry": None,
     "iup_nomor": "570/16-IUP.OP/DPMPTSP/IV/2023", "iup_nama": "PT SUMBER GUNUNG MAJU",
     "iup_bentuk_usaha": "PT", "iup_tanggal_terbit": "18/04/2023", "iup_periode": 5,
@@ -55,6 +55,7 @@ class MapperTest(unittest.TestCase):
         self.assertEqual(values["iup_tanggal_terbit"], "2023-04-18")
         self.assertEqual(values["iup_periode"], "5")
         self.assertNotIn("vendor", values)  # null tidak ikut
+        self.assertEqual(values["golongan"], "Batuan")
 
     def test_normalize_values_ignores_unknown_and_blank(self):
         self.assertEqual(normalize_values({"iup_nama": " PT A ", "foo": "x", "nib_lokasi": "-"}),
