@@ -7,7 +7,8 @@ from ui.cache import cached_minerba_data
 
 def main() -> None:
     st.set_page_config(page_title="Procurement Matcher", page_icon="🏢", layout="wide")
-    st.title("🏢 Procurement Vendor Checker")
+    st.title("🏢 QUICK Andesit")
+    st.text("Quarry Information Checklist")
 
     vendor, minerba = st.tabs(["📋 Vendor (Procurement)", "🌐 Minerba Website (ESDM)"])
     df_minerba = cached_minerba_data()
