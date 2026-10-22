@@ -9,6 +9,7 @@ from core.frames import frames_equal
 from core.validation import ValidationSettings, validate_vendors
 
 # ---- kunci session_state (satu tempat agar mudah dilacak) ----
+KEY_AUTH_USER = "auth_user"        # username yang sedang login
 KEY_SCHEMA_OK = "schema_ok"
 KEY_FLASH = "flash"
 KEY_TABLE_NAMES = "table_names"

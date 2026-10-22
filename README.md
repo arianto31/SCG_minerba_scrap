@@ -7,7 +7,8 @@ otomatis dari Excel atau dari foto/PDF dokumen (dibaca Gemini).
 
 1. Salin seluruh isi folder ini ke proyek Anda (termasuk `minerba_scraper.py` versi cepat/async yang baru).
 2. `pip install -r requirements.txt`
-3. Salin `.env.example` menjadi `.env`, isi `SUPABASE_URL`, `SUPABASE_KEY`, dan (opsional) `GEMINI_API_KEY`.
+3. Salin `.env.example` menjadi `.env`, isi `SUPABASE_URL`, `SUPABASE_KEY`, `AUTH_USERS` (login, wajib), dan (opsional) `GEMINI_API_KEY`.
+   Buat pengguna: `python -m tools.hash_password`, lalu tempel barisnya ke `.env`.
 4. Jalankan isi `sql/schema.sql` di Supabase (SQL Editor; aman dijalankan ulang). Jika kolom baru belum ada, aplikasi menampilkan SQL-nya sendiri.
 5. `streamlit run app.py`
 
@@ -25,6 +26,7 @@ Lapisan `core`, `services`, dan `repositories` tidak mengimpor Streamlit, sehing
 | `core/schema.py` | Daftar kolom, label, konstanta | menambah/mengubah kolom vendor |
 | `core/validation.py` | Cocokkan ke Minerba, isi otomatis, countdown, remark | hasil Valid/"-" atau peringatan salah |
 | `core/text_utils.py` | Normalisasi nama, tanggal, angka | format tanggal/angka bermasalah |
+| `core/auth.py` / `ui/login.py` / `tools/hash_password.py` | Hash password, form login, pembuat hash | tidak bisa login / konfigurasi pengguna |
 | `core/phone.py` | Nomor kontak -> link WhatsApp | link WA salah/kosong |
 | `core/filtering.py` | Filter tabel ESDM (tidak peka kapital) | filter tidak menemukan data |
 | `repositories/` | Semua akses Supabase | error database, query |
