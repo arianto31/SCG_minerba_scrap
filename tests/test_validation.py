@@ -45,6 +45,14 @@ class ValidationTest(unittest.TestCase):
         self.assertIn("catatan saya", remark)
         self.assertNotIn("lama", remark)
 
+    def test_legacy_indonesian_warning_is_replaced_not_kept(self):
+        df = vendor_df({"iup_nama": "PT SUMBER GUNUNG MAJU",
+                        "remark": "[PERINGATAN] IUP akan berakhir 99 hari lagi | catatan saya"})
+        remark = validate_vendors(df, self.minerba, self.cfg).loc[1, "remark"]
+        self.assertNotIn("[PERINGATAN]", remark)
+        self.assertTrue(remark.startswith(f"{AUTO_TAG} IUP expires in 30 days"))
+        self.assertIn("catatan saya", remark)
+
     def test_fuzzy_threshold(self):
         df = vendor_df({"iup_nama": "PT SUMBER GUNUNG MAJUU"})
         strict = validate_vendors(df, self.minerba, self.cfg)

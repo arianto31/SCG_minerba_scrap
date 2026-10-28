@@ -1,9 +1,9 @@
-"""Exception khusus fitur ekstraksi dokumen (agar UI bisa menampilkan pesan yang ramah)."""
+"""Document extraction exceptions (so the UI can show friendly messages)."""
 
 
 class ExtractionError(Exception):
-    """Ekstraksi gagal (berkas tidak valid, layanan AI error, atau hasil tidak terbaca)."""
+    """Extraction failed (invalid file, AI service error, or unreadable result)."""
 
 
 class MissingApiKeyError(ExtractionError):
-    """API key Gemini belum diatur."""
+    """The Gemini API key is not set."""

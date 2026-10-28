@@ -1,4 +1,4 @@
-"""Ubah hasil ekstraksi menjadi nilai kolom tabel vendor (dan gabungkan ke baris yang ada)."""
+"""Turn extraction results into vendor column values (and merge them into existing rows)."""
 from typing import Dict, Mapping
 
 import pandas as pd
@@ -10,7 +10,7 @@ from .models import FILLABLE_COLUMNS, ExtractedDocument
 
 
 def normalize_values(raw: Mapping[str, object]) -> Dict[str, str]:
-    """Rapikan nilai mentah (dari AI atau hasil koreksi user): hanya kolom terisi, tanggal ISO, angka bulat."""
+    """Clean raw values (from the AI or user corrections): filled columns only, ISO dates, whole numbers."""
     values: Dict[str, str] = {}
     for column in FILLABLE_COLUMNS:
         value = raw.get(column)
@@ -31,7 +31,7 @@ def to_vendor_values(document: ExtractedDocument) -> Dict[str, str]:
 
 
 def new_vendor_row(values: Mapping[str, str]) -> Dict[str, str]:
-    """Baris vendor baru: semua kolom kosong kecuali yang diisi dari dokumen."""
+    """A new vendor row: every column empty except those filled from the document."""
     row = {column: "" for column in DB_COLS}
     row.update(values)
     return row
@@ -39,8 +39,8 @@ def new_vendor_row(values: Mapping[str, str]) -> Dict[str, str]:
 
 def merge_values(existing: Mapping[str, object], values: Mapping[str, str], overwrite: bool) -> Dict[str, str]:
     """
-    Gabungkan nilai dokumen ke baris yang sudah ada.
-    overwrite=False: hanya mengisi kolom yang masih kosong; True: menimpa kolom yang sudah terisi.
+    Merge document values into an existing row.
+    overwrite=False: only fill empty columns; True: also replace columns that already have a value.
     """
     merged = {
         column: "" if pd.isna(existing.get(column, "")) else str(existing.get(column, ""))

@@ -21,7 +21,7 @@ def page(rows, last_page=1):
 
 
 class FakeClient:
-    """Klien HTTP palsh: `handler(url, call_number)` menentukan respons. Mencatat konkurensi puncak."""
+    """Fake HTTP client: `handler(url, call_number)` decides the response. Records peak concurrency."""
 
     def __init__(self, handler, latency=0.0):
         self.handler, self.latency, self.calls, self.active, self.peak = handler, latency, 0, 0, 0
@@ -96,7 +96,7 @@ class AdaptiveGateTest(unittest.IsolatedAsyncioTestCase):
         gate = AdaptiveGate(maximum=20, minimum=4)
         gate.penalize()
         self.assertEqual(gate.limit, 14)
-        gate.penalize()  # masih dalam masa jeda -> tidak turun dua kali
+        gate.penalize()  # still in the cooldown -> does not drop twice
         self.assertEqual(gate.limit, 14)
         for _ in range(AdaptiveGate.RECOVER_AFTER):
             gate.reward()
@@ -120,7 +120,7 @@ class GetJsonTest(unittest.IsolatedAsyncioTestCase):
         self.scraper.client = client
         self.assertEqual(await self.scraper._get_json("u"), {"ok": 1})
         self.assertEqual(client.calls, 3)
-        self.assertLess(self.scraper.gate.limit, 8)  # konkurensi diturunkan
+        self.assertLess(self.scraper.gate.limit, 8)  # concurrency lowered
 
     async def test_retries_transport_error(self):
         client = FakeClient(lambda url, n: httpx.ConnectError("boom") if n == 1 else FakeResponse(200, {"ok": 1}))
@@ -155,8 +155,8 @@ class PipelineTest(unittest.IsolatedAsyncioTestCase):
                                            for i in range(40)]))
         company = url.split("/badan-usaha/")[1].split("/")[0]
         if company == "c13":
-            return FakeResponse(404)  # satu perusahaan selalu gagal
-        if company == "c5":  # perusahaan dengan 3 halaman izin
+            return FakeResponse(404)  # one company always fails
+        if company == "c5":  # company with 3 pages of permits
             page_no = int(url.rsplit("page=", 1)[1])
             return FakeResponse(200, page([self.permit(f"c5-{page_no}")], last_page=3))
         return FakeResponse(200, page([self.permit(f"{company}-1")]))
@@ -165,7 +165,7 @@ class PipelineTest(unittest.IsolatedAsyncioTestCase):
         scraper = make_scraper(FakeClient(self.handler, latency=0.005), workers=10)
         rows = await scraper._scrape_all()
         numbers = {r["nomor_izin"] for r in rows}
-        self.assertEqual(len(rows), 39 - 1 + 3)            # 40 perusahaan - c13 gagal - c5(1) + c5(3 halaman)
+        self.assertEqual(len(rows), 39 - 1 + 3)            # 40 companies - c13 failed - c5(1) + c5(3 pages)
         self.assertTrue({"c5-1", "c5-2", "c5-3"} <= numbers)
         self.assertNotIn("c13-1", numbers)
         self.assertEqual(rows[0]["jenis_izin"], "IUP OP")
@@ -192,11 +192,11 @@ class PipelineTest(unittest.IsolatedAsyncioTestCase):
         stages = [e.stage for e in events]
         order = [STAGE_COMPANIES, STAGE_PERMITS, STAGE_SAVE, STAGE_DONE]
         self.assertEqual(sorted(set(stages), key=order.index), order)
-        self.assertEqual(stages, sorted(stages, key=order.index))        # urutan tahap tidak mundur
+        self.assertEqual(stages, sorted(stages, key=order.index))        # stages never go backwards
         permits = [e for e in events if e.stage == STAGE_PERMITS]
-        self.assertEqual(permits[-1].done, permits[-1].total)             # perusahaan utama selesai semua
+        self.assertEqual(permits[-1].done, permits[-1].total)             # every main company finished
         last = events[-1]
-        self.assertEqual((last.stage, last.permits, last.failed), (STAGE_DONE, 41, 1))   # c13 gagal
+        self.assertEqual((last.stage, last.permits, last.failed), (STAGE_DONE, 41, 1))   # c13 failed
         self.assertEqual(last.total, 40)
         self.assertGreaterEqual(last.elapsed, 0)
 
@@ -233,8 +233,8 @@ class PipelineTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(httpx.WriteError):
             scraper.run_pipeline()
         store = scraper.supabase.store
-        self.assertTrue(store["rolled_back"])   # baris baru yang sempat masuk dibatalkan
-        self.assertFalse(store["deleted"])      # data lama tidak disentuh
+        self.assertTrue(store["rolled_back"])   # new rows that got in were removed
+        self.assertFalse(store["deleted"])      # old data untouched
 
     def test_save_is_sequential_by_default(self):
         self.assertEqual(MinerbaScraper(FakeSupabase()).save_workers, 1)

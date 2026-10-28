@@ -1,46 +1,47 @@
-"""Tampilan progres scraping: kartu kecil minimalis (HTML + CSS) yang diperbarui langsung di layar."""
+"""Scraping progress display: a small, minimal card (HTML + CSS) updated live on screen."""
 import html
 import time
 from typing import Optional
 
 from minerba_scraper import STAGE_COMPANIES, STAGE_DONE, STAGE_PERMITS, STAGE_SAVE, ScrapeProgress
 
-_STEPS = [(STAGE_COMPANIES, "Perusahaan"), (STAGE_PERMITS, "Izin"), (STAGE_SAVE, "Simpan")]
+_STEPS = [(STAGE_COMPANIES, "Companies"), (STAGE_PERMITS, "Permits"), (STAGE_SAVE, "Save")]
 _STAGE_INDEX = {STAGE_COMPANIES: 0, STAGE_PERMITS: 1, STAGE_SAVE: 2, STAGE_DONE: 3}
 _STAGE_TITLE = {
-    STAGE_COMPANIES: "Mengambil daftar perusahaan",
-    STAGE_PERMITS: "Mengekstrak izin",
-    STAGE_SAVE: "Menyimpan ke database",
-    STAGE_DONE: "Selesai",
+    STAGE_COMPANIES: "Fetching company list",
+    STAGE_PERMITS: "Extracting permits",
+    STAGE_SAVE: "Saving to database",
+    STAGE_DONE: "Done",
 }
-# Bobot bar keseluruhan (persen): tahap perusahaan singkat, izin paling lama.
+# Weight of each stage in the overall bar (percent): the company stage is short, permits take longest.
 _WEIGHTS = {STAGE_COMPANIES: (0, 5), STAGE_PERMITS: (5, 90), STAGE_SAVE: (90, 100)}
 
 _CSS = """<style>
-.sp{max-width:440px;padding:10px 14px;border:1px solid rgba(128,128,128,.28);border-radius:12px;font-size:.8rem;line-height:1.35;margin:6px auto}
-.sp-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(128,128,128,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-.sp-overlay .sp{width:min(380px,88vw);padding:16px 18px;margin:0;background:rgba(128,128,128,.24);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 8px 32px rgba(0,0,0,.22)}
-.sp-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
-.sp-title{font-weight:600}
-.sp-pct{opacity:.65;font-variant-numeric:tabular-nums}
-.sp-track{height:4px;border-radius:99px;background:rgba(128,128,128,.22);overflow:hidden}
-.sp-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6366f1,#22d3ee);transition:width .25s ease}
+.sp{max-width:460px;padding:14px 16px;border:1px solid rgba(148,163,184,.18);border-radius:14px;font-size:.82rem;line-height:1.4;margin:6px 0;background:linear-gradient(180deg,rgba(22,30,52,.9),rgba(13,18,32,.9))}
+.sp-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(5,8,16,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sp-overlay .sp{width:min(420px,90vw);padding:20px 22px;margin:0;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.sp-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;gap:10px}
+.sp-title{font-weight:600;color:#F1F5F9}
+.sp-pct{color:#A5B4FC;font-weight:600;font-variant-numeric:tabular-nums}
+.sp-track{height:6px;border-radius:99px;background:rgba(148,163,184,.16);overflow:hidden}
+.sp-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6366F1,#22D3EE);box-shadow:0 0 12px rgba(34,211,238,.45);transition:width .25s ease}
 .sp-fill.busy{width:30%;animation:sp-slide 1.1s ease-in-out infinite}
-.sp-fill.ok{background:linear-gradient(90deg,#22c55e,#4ade80)}
-.sp-fill.err{background:#ef4444}
+.sp-fill.ok{background:linear-gradient(90deg,#10B981,#34D399);box-shadow:none}
+.sp-fill.err{background:#F87171;box-shadow:none}
 @keyframes sp-slide{0%{margin-left:-30%}100%{margin-left:100%}}
-.sp-meta{margin-top:7px;opacity:.75;font-variant-numeric:tabular-nums}
-.sp-steps{display:flex;gap:12px;margin-top:8px;font-size:.7rem;opacity:.85}
-.sp-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(128,128,128,.45);margin-right:5px}
-.sp-step.on .sp-dot{background:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.2)}
-.sp-step.done .sp-dot{background:#22c55e}
-.sp-warn{color:#f59e0b}
+.sp-meta{margin-top:9px;color:#94A3B8;font-variant-numeric:tabular-nums}
+.sp-steps{display:flex;gap:14px;margin-top:10px;font-size:.74rem;color:#CBD5E1}
+.sp-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(148,163,184,.45);margin-right:6px}
+.sp-step.on .sp-dot{background:#818CF8;box-shadow:0 0 0 3px rgba(129,140,248,.25)}
+.sp-step.done .sp-dot{background:#34D399}
+.sp-warn{color:#FBBF24}
+.sp-hint{margin-top:10px;font-size:.74rem;color:#64748B}
 </style>"""
 
 
 def _num(value: int) -> str:
-    """12345 -> '12.345' (pemisah ribuan gaya Indonesia)."""
-    return f"{int(value):,}".replace(",", ".")
+    """12345 -> '12,345'."""
+    return f"{int(value):,}"
 
 
 def _clock(seconds: float) -> str:
@@ -51,7 +52,7 @@ def _clock(seconds: float) -> str:
 
 
 def percent(p: ScrapeProgress) -> int:
-    """Persen keseluruhan (0-100) dari tahap dan jumlah yang selesai."""
+    """Overall percent (0-100) from the stage and the amount done."""
     if p.stage == STAGE_DONE:
         return 100
     start, end = _WEIGHTS[p.stage]
@@ -63,17 +64,17 @@ def _meta(p: ScrapeProgress) -> str:
     if p.stage == STAGE_COMPANIES:
         return html.escape(p.message or _STAGE_TITLE[STAGE_COMPANIES])
     if p.stage == STAGE_PERMITS:
-        parts = [f"{_num(p.done)}/{_num(p.total)} perusahaan", f"{_num(p.permits)} izin"]
+        parts = [f"{_num(p.done)}/{_num(p.total)} companies", f"{_num(p.permits)} permits"]
         if p.rate:
-            parts.append(f"{p.rate:.0f}/dtk")
+            parts.append(f"{p.rate:.0f}/s")
         parts.append(_clock(p.elapsed))
     elif p.stage == STAGE_SAVE:
-        parts = [f"{_num(p.done)}/{_num(p.total)} paket", f"{_num(p.permits)} izin", _clock(p.elapsed)]
+        parts = [f"{_num(p.done)}/{_num(p.total)} batches", f"{_num(p.permits)} permits", _clock(p.elapsed)]
     else:
-        parts = [f"{_num(p.total)} perusahaan", f"{_num(p.permits)} izin", _clock(p.elapsed)]
+        parts = [f"{_num(p.total)} companies", f"{_num(p.permits)} permits", _clock(p.elapsed)]
     text = " · ".join(parts)
     if p.failed:
-        text += f' · <span class="sp-warn">⚠ {_num(p.failed)} gagal</span>'
+        text += f' · <span class="sp-warn">⚠ {_num(p.failed)} failed</span>'
     return text
 
 
@@ -89,8 +90,8 @@ def _steps(p: ScrapeProgress) -> str:
 
 def render_progress_html(p: ScrapeProgress, caption: Optional[str] = None, overlay: bool = False) -> str:
     """
-    Kartu progres sebagai satu baris HTML (tanpa baris kosong/indentasi agar tidak dibaca sebagai kode).
-    overlay=True: kartu melayang tepat di tengah layar (dipakai saat scraping berjalan).
+    The progress card as one line of HTML (no blank lines/indentation, so markdown never reads it as code).
+    overlay=True: the card floats in the middle of the screen (used while scraping runs).
     """
     finished = p.stage == STAGE_DONE
     busy = p.stage == STAGE_COMPANIES and not p.total
@@ -99,27 +100,29 @@ def render_progress_html(p: ScrapeProgress, caption: Optional[str] = None, overl
     title = p.message if (p.stage == STAGE_PERMITS or finished) and p.message else _STAGE_TITLE[p.stage]
     title = ("✓ " if finished else "") + title
     extra = f" · {html.escape(caption)}" if caption else ""
+    hint = '<div class="sp-hint">Please keep this page open until it finishes.</div>' if overlay else ""
     card = (
         f'<div class="sp">'
         f'<div class="sp-top"><span class="sp-title">{html.escape(title)}</span>'
         f'<span class="sp-pct">{percent(p)}%</span></div>'
         f'<div class="sp-track"><div class="{fill_class}"{width}></div></div>'
         f'<div class="sp-meta">{_meta(p)}{extra}</div>'
-        f'<div class="sp-steps">{_steps(p)}</div></div>'
+        f'<div class="sp-steps">{_steps(p)}</div>{hint}</div>'
     )
     return f'{_CSS}<div class="sp-overlay">{card}</div>' if overlay else f"{_CSS}{card}"
 
 
 def render_error_html(message: str) -> str:
     return (
-        f'{_CSS}<div class="sp"><div class="sp-top"><span class="sp-title">Scraping gagal</span></div>'
+        f'{_CSS}<div class="sp"><div class="sp-top"><span class="sp-title">Refresh failed · '
+        f'your existing data was kept</span></div>'
         f'<div class="sp-track"><div class="sp-fill err" style="width:100%"></div></div>'
         f'<div class="sp-meta">{html.escape(message)}</div></div>'
     )
 
 
 class ScrapeProgressView:
-    """Menggambar progres ke satu placeholder Streamlit (`st.empty()`), dibatasi agar UI tidak tersendat."""
+    """Draws progress into one Streamlit placeholder (`st.empty()`), throttled so the UI stays smooth."""
 
     def __init__(self, slot, min_interval: float = 0.15):
         self._slot = slot
@@ -129,7 +132,7 @@ class ScrapeProgressView:
         self.last: Optional[ScrapeProgress] = None
 
     def update(self, p: ScrapeProgress) -> None:
-        """Dipakai sebagai callback `on_progress` pada scraper."""
+        """Used as the scraper's `on_progress` callback."""
         self.last = p
         now = time.monotonic()
         important = p.stage != self._last_stage or p.stage == STAGE_DONE or (p.total and p.done >= p.total)
@@ -142,5 +145,5 @@ class ScrapeProgressView:
 
 
 def show_summary(slot, p: ScrapeProgress, caption: Optional[str] = None) -> None:
-    """Tampilkan ringkasan pembaruan terakhir (kartu selesai) pada placeholder."""
+    """Show the summary of the last refresh (the finished card) in the placeholder."""
     slot.markdown(render_progress_html(p, caption), unsafe_allow_html=True)

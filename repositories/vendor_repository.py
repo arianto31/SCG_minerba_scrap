@@ -1,4 +1,4 @@
-"""Akses data vendor di Supabase. Satu tabel vendor = satu nilai pada kolom `kategori`."""
+"""Vendor data access in Supabase. One vendor list = one value of the `kategori` column."""
 from pathlib import Path
 from typing import Dict, List
 
@@ -13,9 +13,9 @@ REGISTRY_TABLE = "vendor_tables"
 _SCHEMA_FILE = Path(__file__).resolve().parent.parent / "sql" / "schema.sql"
 
 
-# ------------------------------------------------------------------ skema & daftar tabel
+# ------------------------------------------------------------------ schema & list names
 def schema_ready() -> bool:
-    """True jika kolom `kategori` dan `golongan` sudah ada."""
+    """True when the `kategori` and `golongan` columns exist."""
     try:
         get_client().table(VENDOR_TABLE).select("kategori,golongan").limit(1).execute()
         return True
@@ -28,7 +28,7 @@ def schema_migration_sql() -> str:
 
 
 def list_table_names() -> List[str]:
-    """Nama tabel vendor: dari daftar `vendor_tables` (jika ada) + nilai `kategori` yang dipakai."""
+    """Vendor list names: from the `vendor_tables` registry (if any) + `kategori` values in use."""
     names: List[str] = []
     try:
         names += [r["nama"] for r in fetch_all(REGISTRY_TABLE, order_col="nama")]
@@ -49,18 +49,18 @@ def list_table_names() -> List[str]:
 
 
 def register_table(name: str) -> None:
-    """Catat nama tabel baru (opsional; gagal diabaikan karena tabel tetap muncul setelah berisi data)."""
+    """Register a new list name (optional; failures are ignored because a list appears once it has data)."""
     try:
         get_client().table(REGISTRY_TABLE).insert({"nama": name}).execute()
     except Exception:
         pass
 
 
-# ------------------------------------------------------------------ baca / tulis vendor
+# ------------------------------------------------------------------ read / write vendors
 def fetch_vendors(table: str) -> pd.DataFrame:
-    """Data vendor satu tabel sebagai DataFrame teks (kolom = DB_COLS, indeks = NO)."""
+    """One vendor list as a text DataFrame (columns = DB_COLS, index = NO)."""
     rows = fetch_all(VENDOR_TABLE, order_col="id", eq=("kategori", table))
-    # dtype=object menjaga angka bulat tetap "5" (bukan "5.0") saat ada nilai NULL
+    # dtype=object keeps whole numbers as "5" (not "5.0") when there are NULL values
     df = pd.DataFrame(rows, dtype=object) if rows else pd.DataFrame(columns=DB_COLS)
     for column in DB_COLS:
         if column not in df.columns:
@@ -72,7 +72,7 @@ def fetch_vendors(table: str) -> pd.DataFrame:
 
 
 def records_from_df(df: pd.DataFrame, table: str) -> List[Dict[str, object]]:
-    """DataFrame -> daftar record Supabase. Sel kosong menjadi NULL; baris tanpa isian manual dilewati."""
+    """DataFrame -> Supabase records. Empty cells become NULL; rows without any manual input are skipped."""
     manual_cols = [c for c in DB_COLS if c not in AUTO_COLS + ["remark"]]
     records = []
     for _, row in df.iterrows():
@@ -81,8 +81,8 @@ def records_from_df(df: pd.DataFrame, table: str) -> List[Dict[str, object]]:
             value = row.get(column, "")
             value = "" if pd.isna(value) else str(value).strip()
             if column in INT_COLS and value:
-                value = to_int_str(value)  # kolom integer menolak desimal seperti "5.116"
-            record[column] = value if value != "" else None  # kolom angka/tanggal menolak ""
+                value = to_int_str(value)  # integer columns reject decimals such as "5.116"
+            record[column] = value if value != "" else None  # number/date columns reject ""
         if any(record[c] for c in manual_cols):
             record["kategori"] = table
             records.append(record)
@@ -91,8 +91,8 @@ def records_from_df(df: pd.DataFrame, table: str) -> List[Dict[str, object]]:
 
 def save_records(records: List[dict], table: str, replace: bool) -> None:
     """
-    Simpan record ke satu tabel vendor.
-    replace=True: data lama dihapus SETELAH data baru berhasil dimasukkan (aman jika insert gagal).
+    Save records into one vendor list.
+    replace=True: old rows are deleted AFTER the new rows were inserted (safe if the insert fails).
     """
     client = get_client()
     old_ids = []

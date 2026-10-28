@@ -1,27 +1,50 @@
-"""Titik masuk aplikasi: jalankan dengan `streamlit run app.py`."""
+"""App entry point: run with `streamlit run app.py`."""
 import streamlit as st
 
-from ui import login, minerba_tab, vendor_tab
-from ui.cache import cached_minerba_data
+from ui import login, minerba_tab, theme, vendor_tab
+from ui.cache import load_minerba_data
+
+_GUIDE = [
+    "Pick a vendor list (or create one) on the Vendors page.",
+    "Add vendors: type them in, import an Excel file, or scan a permit with AI.",
+    "Each IUP holder name is checked against MinerbaOne automatically.",
+    "Red rows need fixing, amber rows expire soon. Save, then download Excel.",
+]
+
+
+def _vendors_page() -> None:
+    vendor_tab.render(load_minerba_data())
+
+
+def _minerba_page() -> None:
+    minerba_tab.render(load_minerba_data())
+
+
+def _sidebar(pages, user: str) -> None:
+    with st.sidebar:
+        theme.brand()
+        theme.nav_label("Menu")
+        for page in pages:
+            st.page_link(page, width="stretch")
+        st.divider()
+        with st.expander("How it works", icon=":material/help:"):
+            theme.guide(_GUIDE)
+        login.render_user_bar(user)
 
 
 def main() -> None:
-    st.set_page_config(page_title="Procurement Matcher", page_icon="🏢", layout="wide")
-    user = login.require_login()  # berhenti di sini sampai login berhasil; belum ada data yang diambil
+    st.set_page_config(page_title=theme.APP_NAME, page_icon="⛰️", layout="wide",
+                       initial_sidebar_state="expanded")
+    theme.inject()
+    user = login.require_login()  # stops here until signed in; no data has been fetched yet
 
-    title_col, user_col = st.columns([5, 1])
-    title_col.title("🏢 QUICK Andesit")
-    title_col.caption("Quarry Information Checklist")
-    with user_col:
-        login.render_user_bar(user)
-
-    vendor, minerba = st.tabs(["📋 Vendor (Procurement)", "🌐 Minerba Website (ESDM)"])
-    df_minerba = cached_minerba_data()
-
-    with minerba:
-        minerba_tab.render(df_minerba)
-    with vendor:
-        vendor_tab.render(df_minerba)
+    pages = [
+        st.Page(_vendors_page, title="Vendors", icon=":material/storefront:", url_path="vendors", default=True),
+        st.Page(_minerba_page, title="MinerbaOne database", icon=":material/travel_explore:", url_path="minerba"),
+    ]
+    current = st.navigation(pages, position="hidden")
+    _sidebar(pages, user)
+    current.run()
 
 
 main()

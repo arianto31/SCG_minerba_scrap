@@ -1,57 +1,75 @@
-# Procurement Vendor Checker
+# QUICK Andesit — Procurement Vendor Checker
 
-Aplikasi Streamlit untuk mengelola data vendor, mengecek IUP-nya ke data Minerba (ESDM), dan mengisi data
-otomatis dari Excel atau dari foto/PDF dokumen (dibaca Gemini).
+A Streamlit app to manage quarry vendor data, verify each vendor's IUP (mining business permit) against the
+official MinerbaOne (ESDM) database, and fill in data automatically from Excel files or from photos/PDFs of
+permit documents (read by Gemini).
 
-## Menjalankan
+## Running
 
-1. Salin seluruh isi folder ini ke proyek Anda (termasuk `minerba_scraper.py` versi cepat/async yang baru).
-2. `pip install -r requirements.txt`
-3. Salin `.env.example` menjadi `.env`, isi `SUPABASE_URL`, `SUPABASE_KEY`, `AUTH_USERS` (login, wajib), dan (opsional) `GEMINI_API_KEY`.
-   Buat pengguna: `python -m tools.hash_password`, lalu tempel barisnya ke `.env`.
-4. Jalankan isi `sql/schema.sql` di Supabase (SQL Editor; aman dijalankan ulang). Jika kolom baru belum ada, aplikasi menampilkan SQL-nya sendiri.
-5. `streamlit run app.py`
+1. `pip install -r requirements.txt` (Streamlit 1.50 or newer)
+2. Copy `.env.example` to `.env` and fill in `SUPABASE_URL`, `SUPABASE_KEY`, `AUTH_USERS` (sign-in, required) and,
+   optionally, `GEMINI_API_KEY`. Create a user with `python -m tools.hash_password` and paste the line into `.env`.
+3. Run `sql/schema.sql` in Supabase (SQL Editor; safe to run again). If new columns are missing, the app shows the SQL itself.
+4. `streamlit run app.py`
 
-Tes: `python -m unittest discover -s tests -t .`
+Tests: `python -m unittest discover -s tests -t .`
 
-## Struktur dan aturan dependensi
+## Using the app
 
-Dependensi hanya mengarah ke bawah: `ui` -> `services`/`repositories` -> `core`.
-Lapisan `core`, `services`, dan `repositories` tidak mengimpor Streamlit, sehingga bisa diuji tanpa UI.
+| Page | What you do there |
+|---|---|
+| **Vendors** | Pick or create a vendor list, see the summary cards (verified / not found / needs attention), search and filter the vendor table, download Excel, and add vendors in one of three tabs: **Type or edit**, **Import from Excel**, **Scan a document (AI)**. **Matching rules** sets the name similarity, the expiry warning window, and which MinerbaOne columns fill the IUP fields. |
+| **MinerbaOne database** | Browse, search, and filter the scraped ESDM permits, download them, or **Refresh data** (re-scrapes MinerbaOne; takes a few minutes, existing data is kept if it fails). |
 
-| Folder | Tanggung jawab | Cari di sini jika... |
+Row status: ✅ verified in MinerbaOne · ❌ IUP holder not found (red row) · ⚠️ IUP expiring or expired (amber row).
+
+## Structure and dependency rule
+
+Dependencies only point downwards: `ui` -> `services`/`repositories` -> `core`.
+The `core`, `services` and `repositories` layers never import Streamlit, so they can be tested without a UI.
+
+| Path | Responsibility | Look here when... |
 |---|---|---|
-| `app.py` | Titik masuk, menyusun tab | tab/halaman salah |
-| `config.py` | Semua variabel `.env` | API key / nama model |
-| `core/schema.py` | Daftar kolom, label, konstanta | menambah/mengubah kolom vendor |
-| `core/validation.py` | Cocokkan ke Minerba, isi otomatis, countdown, remark | hasil Valid/"-" atau peringatan salah |
-| `core/text_utils.py` | Normalisasi nama, tanggal, angka | format tanggal/angka bermasalah |
-| `core/auth.py` / `ui/login.py` / `tools/hash_password.py` | Hash password, form login, pembuat hash | tidak bisa login / konfigurasi pengguna |
-| `core/phone.py` | Nomor kontak -> link WhatsApp | link WA salah/kosong |
-| `core/filtering.py` | Filter tabel ESDM (tidak peka kapital) | filter tidak menemukan data |
-| `repositories/` | Semua akses Supabase | error database, query |
-| `minerba_scraper.py` | Scraper ESDM async + konkurensi adaptif | scraping lambat / error 429 / data ESDM kurang |
-| `services/excel_export.py` / `excel_import.py` | Baca/tulis Excel | Excel tidak terbaca / tata letak salah |
-| `services/document_ai/` | Ekstraksi dokumen dengan Gemini | hasil AI salah / ganti model |
-| `ui/vendor_tab.py`, `ui/minerba_tab.py` | Merangkai tab | urutan tampilan |
-| `ui/sections/` | Satu file = satu bagian layar | tombol/formulir tertentu |
-| `ui/styles.py` | Warna baris, konfigurasi kolom (termasuk link WA) | tampilan tabel |
-| `ui/scrape_progress.py` | Kartu progres scraping (HTML/CSS) | tampilan progres |
-| `ui/state.py` | Kunci `session_state` & konteks bersama | state saling menimpa |
-| `tests/` | Unit test | setelah mengubah logika |
+| `app.py` | Entry point, sidebar, page navigation | a page/menu is wrong |
+| `.streamlit/config.toml` | Theme (colors, font), upload limit | changing the look |
+| `ui/theme.py` | Global CSS + HTML building blocks (header, KPI cards, steps, legend) | styling a component |
+| `config.py` | Every `.env` variable | API keys / model name |
+| `core/schema.py` | Columns, English display labels, constants | adding/changing a vendor column |
+| `core/validation.py` | Match to Minerba, auto-fill, countdown, remark warnings | wrong Valid/"-" result or warnings |
+| `core/vendor_status.py` | Row status used by cards, filters and colors | counts/colors look wrong |
+| `core/text_utils.py` | Name, date and number normalization | date/number format problems |
+| `core/auth.py` / `ui/login.py` / `tools/hash_password.py` | Password hashing, sign-in page, hash generator | cannot sign in / user setup |
+| `core/phone.py` | Contact number -> WhatsApp link | wrong/empty WA link |
+| `core/filtering.py` | Table search and per-column filters (case-insensitive) | filters find nothing |
+| `repositories/` | All Supabase access | database errors, queries |
+| `minerba_scraper.py` | Async ESDM scraper with adaptive concurrency | slow scraping / 429 errors / missing ESDM data |
+| `services/excel_export.py` / `excel_import.py` | Excel read/write (company two-level header format) | Excel not read / wrong layout |
+| `services/document_ai/` | Document extraction with Gemini | wrong AI results / switching model |
+| `ui/vendor_tab.py`, `ui/minerba_tab.py` | Page layouts | order of sections |
+| `ui/sections/` | One file = one part of the screen | a specific button/form |
+| `ui/styles.py` | Row colors, column config (incl. WA links), ESDM column labels | table appearance |
+| `ui/scrape_progress.py` | Scraping progress card (HTML/CSS) | progress display |
+| `ui/state.py` | `session_state` keys & shared context | state overwriting itself |
+| `tests/` | Unit tests | after changing logic |
 
-### Alur fitur upload dokumen AI
+### Compatibility notes
 
-`ui/sections/document_upload.py` -> `services/document_ai/gemini_extractor.py` (kirim berkas + skema ke Gemini)
--> `mapper.py` (rapikan tanggal/angka) -> pratinjau & koreksi oleh user -> `core/validation.py` (cek ke Minerba)
--> `repositories/vendor_repository.py` (simpan).
+- Database column names, the default list name `Umum`, and the Excel template headers stay in the original
+  (Indonesian) format so existing data and files keep working. The Excel importer also accepts English headers.
+- Automatic remark warnings now start with `[WARNING]`; old `[PERINGATAN]` warnings are recognised and replaced.
 
-- Ubah instruksi ke AI: `services/document_ai/prompts.py`
-- Tambah field yang diekstrak: `models.py` (`ExtractedDocument` + `FILLABLE_COLUMNS`); nama field harus sama dengan nama kolom database
-- Ganti model: `GEMINI_MODEL` di `.env`, atau ganti isi `create_extractor()` di `services/document_ai/__init__.py` untuk penyedia lain
+### AI document upload flow
 
-### Menambah fitur baru
+`ui/sections/document_upload.py` -> `services/document_ai/gemini_extractor.py` (sends files + schema to Gemini)
+-> `mapper.py` (cleans dates/numbers) -> user review & corrections -> `core/validation.py` (MinerbaOne check)
+-> `repositories/vendor_repository.py` (save).
 
-1. Logika murni -> `core/` atau `services/` (+ tes di `tests/`)
-2. Akses data -> `repositories/`
-3. Tampilan -> file baru di `ui/sections/` lalu panggil dari `ui/vendor_tab.py`
+- Change the AI instructions: `services/document_ai/prompts.py`
+- Extract a new field: `models.py` (`ExtractedDocument` + `FILLABLE_COLUMNS`); field names must equal database column names
+- Change the model: `GEMINI_MODEL` in `.env`, or replace `create_extractor()` in `services/document_ai/__init__.py` for another provider
+
+### Adding a feature
+
+1. Pure logic -> `core/` or `services/` (+ tests in `tests/`)
+2. Data access -> `repositories/`
+3. Screen -> a new file in `ui/sections/`, called from `ui/vendor_tab.py`

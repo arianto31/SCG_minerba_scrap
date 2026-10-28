@@ -1,4 +1,4 @@
-"""Impor data vendor dari Excel. Mendukung header 1 baris maupun header 2 tingkat (sel digabung)."""
+"""Import vendor data from Excel. Supports one-row headers and two-level (merged cell) headers."""
 import io
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -9,7 +9,8 @@ import pandas as pd
 from core.schema import DATE_COLS, DB_COLS, INT_COLS
 from core.text_utils import clean_key, is_blank, to_int_str, to_iso_date
 
-# Kunci = teks header yang sudah dibersihkan (huruf kecil, tanpa spasi/tanda baca/isi kurung).
+# Key = cleaned header text (lower-case, no spaces/punctuation/bracketed text).
+# Indonesian headers (company template) and English headers are both accepted.
 HEADER_ALIASES = {
     "vendor": "vendor", "namavendor": "vendor",
     "namapic": "nama_pic", "pic": "nama_pic",
@@ -33,9 +34,19 @@ HEADER_ALIASES = {
     "minerbaone": "minerbaone",
     "smartcomp": "smart_comp",
     "remark": "remark", "keterangan": "remark", "catatan": "remark",
+    # English headers
+    "vendorname": "vendor", "picname": "nama_pic", "contact": "no_kontak", "contactno": "no_kontak",
+    "contactnumber": "no_kontak", "phone": "no_kontak", "phonenumber": "no_kontak",
+    "nibnumber": "nib_nomor", "materialgroup": "golongan", "nibdate": "nib_tanggal", "niblocation": "nib_lokasi",
+    "supportletternumber": "surat_dukungan_nomor", "supportletterdate": "surat_dukungan_tanggal",
+    "supportletterquarrylocation": "surat_dukungan_lokasi_quarry", "quarrylocation": "surat_dukungan_lokasi_quarry",
+    "iupnumber": "iup_nomor", "iupholdername": "iup_nama", "iupholder": "iup_nama", "iupname": "iup_nama",
+    "iupentitytype": "iup_bentuk_usaha", "iupissuedate": "iup_tanggal_terbit", "iupterm": "iup_periode",
+    "iuptermyears": "iup_periode", "iupexpirydate": "iup_tanggal_berakhir", "expirydate": "iup_tanggal_berakhir",
+    "iupdaysleft": "iup_countdown", "notes": "remark",
 }
 
-# Label sub-header yang menandakan baris kedua pada header 2 tingkat.
+# Sub-header labels that mark the second row of a two-level header.
 SUB_LABELS = {"nomor", "tanggal", "lokasi", "lokasiquarry", "nama", "bentuk", "periode",
               "tanggalterbit", "tanggalberakhir", "countdown"}
 
@@ -44,16 +55,16 @@ _MAX_HEADER_SEARCH_ROWS = 30
 
 @dataclass
 class ImportResult:
-    data: pd.DataFrame                 # kolom = DB_COLS, indeks = NO
-    mapped: List[Tuple[str, str]]      # (label di Excel, kolom database)
-    unmapped: List[str]                # label kolom yang tidak dikenali
+    data: pd.DataFrame                 # columns = DB_COLS, index = NO
+    mapped: List[Tuple[str, str]]      # (Excel label, database column)
+    unmapped: List[str]                # unrecognised column labels
 
 
 def parse_vendor_excel(data: bytes) -> ImportResult:
-    """Baca file Excel vendor. Melempar ValueError jika kolom VENDOR tidak ditemukan."""
+    """Read a vendor Excel file. Raises ValueError when the VENDOR column cannot be found."""
     raw = pd.read_excel(io.BytesIO(data), header=None, dtype=object)
     if raw.empty:
-        raise ValueError("File Excel kosong.")
+        raise ValueError("The Excel file is empty.")
 
     header_row = _find_header_row(raw)
     sub_row = _find_sub_header(raw, header_row)
@@ -69,11 +80,11 @@ def _find_header_row(raw: pd.DataFrame) -> int:
     for i in range(min(len(raw), _MAX_HEADER_SEARCH_ROWS)):
         if any(clean_key(v) == "vendor" for v in raw.iloc[i].tolist() if pd.notna(v)):
             return i
-    raise ValueError("Kolom 'VENDOR' tidak ditemukan pada 30 baris pertama. Pastikan header sesuai template.")
+    raise ValueError("No 'VENDOR' column found in the first 30 rows. Make sure the header matches the template.")
 
 
 def _find_sub_header(raw: pd.DataFrame, header_row: int) -> Optional[list]:
-    """Baris sub-header (mis. NOMOR/TANGGAL) jika header 2 tingkat; None jika header 1 baris."""
+    """The sub-header row (e.g. NOMOR/TANGGAL) for two-level headers; None for one-row headers."""
     if header_row + 1 >= len(raw):
         return None
     next_row = raw.iloc[header_row + 1].tolist()
@@ -92,7 +103,7 @@ def _header_to_db(key: str) -> Optional[str]:
 
 
 def _map_columns(group_row: list, sub_row: Optional[list]):
-    """Petakan setiap kolom Excel ke kolom database. Mengembalikan (index->kolom db, terpetakan, tak dikenal)."""
+    """Map each Excel column to a database column. Returns (index->db column, mapped, unrecognised)."""
     column_map: Dict[int, str] = {}
     mapped: List[Tuple[str, str]] = []
     unmapped: List[str] = []
@@ -105,7 +116,7 @@ def _map_columns(group_row: list, sub_row: Optional[list]):
             sub = str(sub_row[j]).strip()
         if group:
             last_group = group
-        effective_group = group if (group or not sub) else last_group  # sel grup digabung -> ambil dari kiri
+        effective_group = group if (group or not sub) else last_group  # merged group cell -> take it from the left
 
         label = f"{effective_group} {sub}".strip()
         if not label:
@@ -143,8 +154,8 @@ def _build_dataframe(body: pd.DataFrame, column_map: Dict[int, str]) -> pd.DataF
         record = {col: "" for col in DB_COLS}
         for j, db_col in column_map.items():
             record[db_col] = _normalize_cell(db_col, source.iloc[j])
-        record["minerbaone"] = ""      # dihitung ulang oleh sistem
-        record["iup_countdown"] = ""   # dihitung ulang oleh sistem
+        record["minerbaone"] = ""      # recalculated by the system
+        record["iup_countdown"] = ""   # recalculated by the system
         if record["vendor"] or record["iup_nama"]:
             rows.append(record)
 

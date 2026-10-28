@@ -41,10 +41,10 @@ class ExcelTest(unittest.TestCase):
         self.assertEqual(df.loc[1, "nib_nomor"], "9120208193905")
         self.assertEqual(df.loc[1, "iup_tanggal_terbit"], "2023-04-18")
         self.assertEqual(df.loc[1, "iup_tanggal_berakhir"], "2028-04-16")
-        self.assertEqual(df.loc[1, "iup_periode"], "5")          # 5.116 dibulatkan
-        self.assertEqual(df.loc[1, "no_kontak"], "")             # '-' dianggap kosong
+        self.assertEqual(df.loc[1, "iup_periode"], "5")          # 5.116 is rounded
+        self.assertEqual(df.loc[1, "no_kontak"], "")             # '-' counts as empty
         self.assertEqual(df.loc[2, "nib_tanggal"], "2019-10-01")
-        self.assertEqual(df.loc[1, "iup_countdown"], "")         # dihitung ulang sistem
+        self.assertEqual(df.loc[1, "iup_countdown"], "")         # recalculated by the system
 
     def test_golongan_follows_nib_nomor_and_round_trips(self):
         df = pd.DataFrame([{**{c: "" for c in DB_COLS}, "vendor": "ABADI", "nib_nomor": "123",
@@ -55,10 +55,10 @@ class ExcelTest(unittest.TestCase):
         sheet = load_workbook(io.BytesIO(data)).active
         row2 = [c.value for c in sheet[2]]
         row1 = [c.value for c in sheet[1]]
-        self.assertEqual(row2[row1.index("GOLONGAN")], None)             # kolom tunggal digabung 2 baris
+        self.assertEqual(row2[row1.index("GOLONGAN")], None)             # single column spans both header rows
         again = parse_vendor_excel(data).data
         self.assertEqual(again.loc[1, "golongan"], "Fly Ash")
-        self.assertEqual(again.loc[1, "nib_tanggal"], "2019-01-30")      # NIB yang terpisah tetap terbaca
+        self.assertEqual(again.loc[1, "nib_tanggal"], "2019-01-30")      # split NIB group is still read
         self.assertEqual(again.loc[1, "nib_nomor"], "123")
 
     def test_flat_header_with_golongan_alias(self):
@@ -93,9 +93,9 @@ class ExcelTest(unittest.TestCase):
         data = build_excel(df, "Vendor Pasir/Batu")
         sheet = load_workbook(io.BytesIO(data)).active
 
-        self.assertEqual(sheet.title, "Vendor PasirBatu")             # karakter terlarang dibuang
-        self.assertEqual(sheet["A1"].value, "NO")                    # NO sejajar di baris header pertama
-        self.assertIsNone(sheet["A2"].value)                         # tidak turun ke baris kedua
+        self.assertEqual(sheet.title, "Vendor PasirBatu")             # forbidden characters removed
+        self.assertEqual(sheet["A1"].value, "NO")                    # NO sits on the first header row
+        self.assertIsNone(sheet["A2"].value)                         # not on the second row
         self.assertEqual(sheet["A3"].value, 1)
         headers = {c.value for c in sheet[2] if c.value}
         self.assertIn("TANGGAL TERBIT", headers)

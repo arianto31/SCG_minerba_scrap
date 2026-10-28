@@ -16,7 +16,7 @@ class RerunApp(Exception):
     pass
 
 
-FAST = 1000  # iterasi kecil agar tes cepat
+FAST = 1000  # few iterations so the tests run fast
 
 
 class PasswordTest(unittest.TestCase):
@@ -67,7 +67,7 @@ class ThrottleTest(unittest.TestCase):
             self.assertEqual(self.throttle.remaining_lock("a"), 0)
             self.throttle.record_failure("a")
         self.assertEqual(self.throttle.remaining_lock("a"), 60)
-        self.assertEqual(self.throttle.remaining_lock("b"), 0)   # username lain tidak ikut terkunci
+        self.assertEqual(self.throttle.remaining_lock("b"), 0)   # other usernames are not locked
         self.now = 61
         self.assertEqual(self.throttle.remaining_lock("a"), 0)
 
@@ -79,7 +79,7 @@ class ThrottleTest(unittest.TestCase):
 
     def test_old_failures_expire(self):
         self.throttle.record_failure("a"); self.throttle.record_failure("a")
-        self.now = 500   # di luar jendela
+        self.now = 500   # outside the window
         self.throttle.record_failure("a")
         self.assertEqual(self.throttle.remaining_lock("a"), 0)
 
@@ -118,14 +118,14 @@ class LoginFlowTest(unittest.TestCase):
     def test_wrong_password_and_unknown_user_share_same_message(self):
         login._attempt_login(self.users, "admin", "salah")
         login._attempt_login(self.users, "tidak-ada", "benar-benar-1")
-        self.assertEqual(self.errors, ["Username atau password salah."] * 2)
+        self.assertEqual(self.errors, [login.MSG_WRONG_CREDENTIALS] * 2)
         self.assertNotIn(state.KEY_AUTH_USER, self.fake_st.session_state)
 
     def test_lockout_blocks_even_correct_password(self):
         for _ in range(5):
             login._attempt_login(self.users, "admin", "salah")
-        login._attempt_login(self.users, "admin", "benar-benar-1")      # benar, tapi sedang terkunci
-        self.assertIn("Terlalu banyak percobaan", self.errors[-1])
+        login._attempt_login(self.users, "admin", "benar-benar-1")      # correct, but currently locked
+        self.assertIn("Too many failed attempts", self.errors[-1])
         self.assertNotIn(state.KEY_AUTH_USER, self.fake_st.session_state)
 
     def test_require_login_blocks_app_until_authenticated(self):
@@ -138,7 +138,7 @@ class LoginFlowTest(unittest.TestCase):
         with patch.object(login.config, "AUTH_USERS", ""):
             with self.assertRaises(StopApp):
                 login.require_login()
-        self.assertIn("Login belum dikonfigurasi", self.errors[-1])
+        self.assertIn("Sign-in is not configured", self.errors[-1])
 
     def test_logout_clears_all_session_data(self):
         self.fake_st.session_state.update({state.KEY_AUTH_USER: "admin", "vendor_df": object()})

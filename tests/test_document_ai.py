@@ -22,7 +22,7 @@ IUP_PAYLOAD = {
     "surat_dukungan_nomor": None, "surat_dukungan_tanggal": None, "surat_dukungan_lokasi_quarry": None,
     "iup_nomor": "570/16-IUP.OP/DPMPTSP/IV/2023", "iup_nama": "PT SUMBER GUNUNG MAJU",
     "iup_bentuk_usaha": "PT", "iup_tanggal_terbit": "18/04/2023", "iup_periode": 5,
-    "iup_tanggal_berakhir": "2028-04-16", "catatan": None,
+    "iup_tanggal_berakhir": "2028-04-16", "notes": None,
 }
 
 
@@ -54,7 +54,7 @@ class MapperTest(unittest.TestCase):
         values = to_vendor_values(doc)
         self.assertEqual(values["iup_tanggal_terbit"], "2023-04-18")
         self.assertEqual(values["iup_periode"], "5")
-        self.assertNotIn("vendor", values)  # null tidak ikut
+        self.assertNotIn("vendor", values)  # nulls are left out
         self.assertEqual(values["golongan"], "Batuan")
 
     def test_normalize_values_ignores_unknown_and_blank(self):
@@ -83,7 +83,7 @@ class ExtractorTest(unittest.TestCase):
         result = extractor.extract([PDF])
         self.assertEqual(result.iup_nama, "PT SUMBER GUNUNG MAJU")
         self.assertEqual(models.calls[0]["model"], "test-model")
-        self.assertEqual(len(models.calls[0]["contents"]), 2)  # 1 berkas + teks perintah
+        self.assertEqual(len(models.calls[0]["contents"]), 2)  # 1 file + instruction text
 
     def test_falls_back_to_json_text(self):
         extractor, _ = extractor_with(SimpleNamespace(parsed=None, text=json.dumps(IUP_PAYLOAD)))
@@ -107,7 +107,7 @@ class ExtractorTest(unittest.TestCase):
             extractor.extract([UploadedDocument("a.txt", b"x", "text/plain")])
         with self.assertRaises(ExtractionError):
             extractor.extract([UploadedDocument("big.pdf", b"0" * (MAX_TOTAL_BYTES + 1), "application/pdf")])
-        self.assertEqual(models.calls, [])  # tidak ada panggilan API untuk input tidak valid
+        self.assertEqual(models.calls, [])  # no API call for invalid input
 
 
 if __name__ == "__main__":

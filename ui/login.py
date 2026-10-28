@@ -1,4 +1,4 @@
-"""Halaman login: seluruh aplikasi disembunyikan sampai username dan password benar."""
+"""Sign-in page: the whole app stays hidden until the username and password are correct."""
 import functools
 import math
 
@@ -6,21 +6,23 @@ import streamlit as st
 
 import config
 from core.auth import AuthConfigError, LoginThrottle, hash_password, parse_users, verify_password
-from ui import state
+from ui import state, theme
 
-_THROTTLE = LoginThrottle()   # dipakai bersama semua sesi di proses server yang sama
+_THROTTLE = LoginThrottle()   # shared by every session in the same server process
+
+MSG_WRONG_CREDENTIALS = "Incorrect username or password."
 
 
 @functools.lru_cache(maxsize=1)
 def _dummy_hash() -> str:
-    """Hash palsu agar username yang tidak ada tetap memakan waktu sama (tidak bisa ditebak dari kecepatan)."""
-    return hash_password("tidak-dipakai")
+    """Fake hash so unknown usernames take the same time (they cannot be guessed from response speed)."""
+    return hash_password("not-used")
 
 
 def require_login() -> str:
     """
-    Pasang di awal aplikasi. Jika belum login: tampilkan form dan HENTIKAN skrip (data belum disentuh).
-    Jika sudah: kembalikan username. Gagal-tertutup: tanpa konfigurasi pengguna, aplikasi tidak bisa dibuka.
+    Call at the top of the app. Not signed in: show the form and STOP the script (no data touched yet).
+    Signed in: return the username. Fails closed: without a user configuration the app cannot be opened.
     """
     user = st.session_state.get(state.KEY_AUTH_USER)
     if user:
@@ -29,10 +31,10 @@ def require_login() -> str:
     try:
         users = parse_users(config.AUTH_USERS)
     except AuthConfigError as exc:
-        st.error(f"Login belum dikonfigurasi: {exc}")
+        st.error(f"Sign-in is not configured yet: {exc}")
         st.markdown(
-            "Buat pengguna dengan `python -m tools.hash_password`, lalu isi `AUTH_USERS` di file `.env` "
-            "dan jalankan ulang aplikasi."
+            "Create a user with `python -m tools.hash_password`, put the result in `AUTH_USERS` in the "
+            "`.env` file, and restart the app."
         )
         st.stop()
 
@@ -41,28 +43,30 @@ def require_login() -> str:
 
 
 def render_user_bar(user: str) -> None:
-    """Nama pengguna + tombol keluar (letakkan di pojok kanan atas)."""
-    st.caption(f"👤 {user}")
-    st.button("Keluar", on_click=logout, key="logout_button")
+    """User card + sign-out button (placed at the bottom of the sidebar)."""
+    theme.user_card(user)
+    st.button("Sign out", on_click=logout, key="logout_button", icon=":material/logout:", width="stretch")
 
 
 def logout() -> None:
-    """Hapus seluruh data sesi (termasuk data vendor yang sempat dimuat)."""
+    """Clear all session data (including any vendor data that was loaded)."""
     st.session_state.clear()
 
 
 # ------------------------------------------------------------------ internal
 def _render_form(users: dict) -> None:
-    _, middle, _ = st.columns([1, 1, 1])
+    _, middle, _ = st.columns([1, 1.1, 1])
     with middle:
-        st.markdown("### 🔒 Masuk")
-        st.caption("Procurement Vendor Checker")
+        theme.login_hero()
         with st.form("login_form"):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Masuk")
+            username = st.text_input("Username", placeholder="Enter your username", autocomplete="username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password",
+                                     autocomplete="current-password")
+            submitted = st.form_submit_button("Sign in", type="primary", icon=":material/login:",
+                                              width="stretch")
         if submitted:
             _attempt_login(users, username, password)
+        theme.login_footer()
 
 
 def _attempt_login(users: dict, username: str, password: str) -> None:
@@ -70,10 +74,10 @@ def _attempt_login(users: dict, username: str, password: str) -> None:
 
     locked_for = _THROTTLE.remaining_lock(key)
     if locked_for > 0:
-        st.error(f"Terlalu banyak percobaan gagal. Coba lagi dalam {math.ceil(locked_for)} detik.")
+        st.error(f"Too many failed attempts. Please try again in {math.ceil(locked_for)} seconds.")
         return
 
-    # Selalu hitung hash (walau username tidak ada) agar waktu respons sama; pesan error pun sama.
+    # Always compute a hash (even for unknown usernames) so response time is identical; same message too.
     password_ok = verify_password(password, users.get(key) or _dummy_hash())
     if password_ok and key in users:
         _THROTTLE.record_success(key)
@@ -81,4 +85,4 @@ def _attempt_login(users: dict, username: str, password: str) -> None:
         st.rerun()
 
     _THROTTLE.record_failure(key)
-    st.error("Username atau password salah.")
+    st.error(MSG_WRONG_CREDENTIALS)

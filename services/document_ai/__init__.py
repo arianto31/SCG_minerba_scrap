@@ -1,4 +1,4 @@
-"""Fitur ekstraksi dokumen (foto/PDF) dengan AI. Titik masuk publik paket ini."""
+"""AI document (photo/PDF) extraction. Public entry point of this package."""
 import config
 
 from .errors import ExtractionError, MissingApiKeyError
@@ -15,7 +15,7 @@ from .models import (
 
 
 def create_extractor() -> GeminiExtractor:
-    """Buat extractor memakai konfigurasi .env. Ganti implementasi di sini untuk memakai model/penyedia lain."""
+    """Create the extractor from the .env settings. Swap the implementation here to use another model/provider."""
     return GeminiExtractor(api_key=config.GEMINI_API_KEY, model=config.GEMINI_MODEL)
 
 

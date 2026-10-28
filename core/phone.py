@@ -1,4 +1,4 @@
-"""Nomor kontak -> link WhatsApp (wa.me)."""
+"""Contact number -> WhatsApp link (wa.me)."""
 import re
 from typing import Optional
 
@@ -12,8 +12,8 @@ _MIN_DIGITS, _MAX_DIGITS = 9, 15
 def to_whatsapp_url(value) -> Optional[str]:
     """
     '0812-3456-7890' / '+62 812 3456 7890' / '812...' -> 'https://wa.me/6281234567890'.
-    Jika ada beberapa nomor dalam satu sel (dipisah koma, titik koma, garis miring, 'dan'), dipakai yang pertama.
-    Mengembalikan None jika bukan nomor telepon yang valid.
+    If a cell holds several numbers (separated by comma, semicolon, slash, 'dan'), the first one is used.
+    Returns None when the value is not a valid phone number.
     """
     if is_blank(value):
         return None
@@ -22,7 +22,7 @@ def to_whatsapp_url(value) -> Optional[str]:
 
     if digits.startswith("00"):          # 0062...
         digits = digits[2:]
-    if digits.startswith("620"):         # 62 0812... (nol berlebih)
+    if digits.startswith("620"):         # 62 0812... (extra zero)
         digits = "62" + digits[3:]
     elif digits.startswith("0"):         # 0812... -> 62812...
         digits = "62" + digits[1:]
@@ -35,7 +35,7 @@ def to_whatsapp_url(value) -> Optional[str]:
 
 
 def with_whatsapp_links(df: pd.DataFrame, column: str = "no_kontak") -> pd.DataFrame:
-    """Salinan DataFrame (khusus tampilan) dengan kolom kontak diganti link WhatsApp; tidak valid -> kosong."""
+    """Display-only copy with the contact column turned into WhatsApp links; invalid numbers -> empty."""
     out = df.copy()
     out[column] = pd.Series([to_whatsapp_url(v) for v in out[column]], index=out.index, dtype=object)
     return out

@@ -1,4 +1,4 @@
-"""Pencocokan vendor ke data Minerba (ESDM), pengisian otomatis, countdown, dan peringatan IUP."""
+"""Match vendors against the Minerba (ESDM) data, auto-fill IUP fields, count down to expiry, and add warnings."""
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Dict, List, Optional
@@ -6,11 +6,12 @@ from typing import Dict, List, Optional
 import pandas as pd
 from rapidfuzz import fuzz, process
 
-from core.schema import AUTO_TAG
+from core.schema import ALL_AUTO_TAGS, AUTO_TAG, VALID
 from core.text_utils import is_blank, normalize_name, parse_date
 
-# Kolom vendor yang diisi dari tabel ESDM: (nama kolom kandidat, kata kunci cadangan).
-# Kata kunci cadangan = daftar alternatif; satu alternatif lolos jika semua katanya ada di nama kolom.
+# Vendor columns filled from the ESDM table: (candidate column names, fallback keywords).
+# The ESDM column names are Indonesian (source data), so the candidates/keywords stay Indonesian.
+# Fallback keywords = list of alternatives; an alternative matches if all its words appear in the column name.
 MINERBA_FIELDS = {
     "iup_nomor": (["nomor_sk", "no_sk", "nomor_iup", "no_iup", "nomor"], [["nomor"]]),
     "iup_bentuk_usaha": (["bentuk_usaha", "bentuk_badan_usaha", "jenis_badan_usaha"], [["bentuk"]]),
@@ -30,16 +31,16 @@ MINERBA_FIELDS = {
 
 @dataclass(frozen=True)
 class ValidationSettings:
-    """Pengaturan pencocokan & pengisian otomatis."""
-    threshold: int = 100                 # 100 = nama harus sama persis (setelah dinormalkan)
-    warn_days: int = 180                 # beri peringatan jika IUP berakhir dalam N hari
-    match_col: Optional[str] = None      # kolom ESDM yang dicocokkan dengan IUP NAMA vendor
-    field_map: Dict[str, Optional[str]] = field(default_factory=dict)  # kolom vendor -> kolom ESDM
+    """Matching and auto-fill settings."""
+    threshold: int = 100                 # 100 = names must match exactly (after normalization)
+    warn_days: int = 180                 # warn when the IUP expires within N days
+    match_col: Optional[str] = None      # ESDM column compared with the vendor's IUP holder name
+    field_map: Dict[str, Optional[str]] = field(default_factory=dict)  # vendor column -> ESDM column
 
 
-# ---------------------------------------------------------------- deteksi kolom ESDM
+# ---------------------------------------------------------------- ESDM column detection
 def detect_column(columns, candidates, keywords) -> Optional[str]:
-    """Tebak kolom ESDM yang sepadan dengan kolom vendor (nama persis dulu, lalu kata kunci)."""
+    """Guess the ESDM column matching a vendor column (exact names first, then keywords)."""
     def simplify(text):
         return "".join(ch for ch in str(text).lower() if ch.isalnum())
 
@@ -57,7 +58,7 @@ def detect_column(columns, candidates, keywords) -> Optional[str]:
 
 
 def default_match_column(columns: List[str]) -> Optional[str]:
-    """Kolom ESDM yang paling mungkin berisi nama IUP."""
+    """The ESDM column most likely to hold the IUP holder name."""
     found = detect_column(columns, ["nama_iup", "iup_nama", "nama_izin"], ["iup", "nama"])
     if found is None and "nama_badan_usaha" in columns:
         return "nama_badan_usaha"
@@ -65,16 +66,16 @@ def default_match_column(columns: List[str]) -> Optional[str]:
 
 
 def default_field_map(columns: List[str]) -> Dict[str, Optional[str]]:
-    """Tebakan awal pasangan kolom vendor <-> ESDM."""
+    """Initial guess of vendor <-> ESDM column pairs."""
     return {
         target: detect_column(columns, candidates, keywords)
         for target, (candidates, keywords) in MINERBA_FIELDS.items()
     }
 
 
-# ---------------------------------------------------------------- pencocokan ke ESDM
+# ---------------------------------------------------------------- matching against ESDM
 def _build_name_index(df_minerba: pd.DataFrame, match_col: str) -> Dict[str, list]:
-    """Nama ternormalisasi -> daftar label baris ESDM."""
+    """Normalized name -> list of ESDM row labels."""
     index: Dict[str, list] = {}
     for label, name in df_minerba[match_col].map(normalize_name).items():
         if name:
@@ -95,7 +96,7 @@ def _find_key(name: str, index: Dict[str, list], threshold: int) -> Optional[str
 
 
 def _pick_best_row(df_minerba: pd.DataFrame, labels: list, end_col: Optional[str]) -> pd.Series:
-    """Jika satu badan usaha punya beberapa izin, pakai yang paling akhir berakhirnya."""
+    """If one company holds several permits, use the one that expires last."""
     rows = df_minerba.loc[labels]
     if end_col and len(rows) > 1:
         end_dates = rows[end_col].map(parse_date)
@@ -105,7 +106,7 @@ def _pick_best_row(df_minerba: pd.DataFrame, labels: list, end_col: Optional[str
 
 
 def _match_with_minerba(df: pd.DataFrame, df_minerba: pd.DataFrame, cfg: ValidationSettings) -> Dict[str, list]:
-    """Hasilkan nilai baru untuk kolom MINERBAONE dan kolom yang diisi dari ESDM."""
+    """New values for the MINERBAONE column and the columns filled from ESDM."""
     active = {target: source for target, source in cfg.field_map.items() if source}
     out = {col: df[col].tolist() for col in ["minerbaone", *active]}
     out["minerbaone"] = ["-"] * len(df)
@@ -120,7 +121,7 @@ def _match_with_minerba(df: pd.DataFrame, df_minerba: pd.DataFrame, cfg: Validat
         key = _find_key(normalize_name(name), index, cfg.threshold)
         if key is None:
             continue
-        out["minerbaone"][position] = "Valid"
+        out["minerbaone"][position] = VALID
         row = _pick_best_row(df_minerba, index[key], end_col)
         for target, source in active.items():
             value = str(row.get(source, "")).strip()
@@ -137,20 +138,24 @@ def _days_until(end_date, today: pd.Timestamp) -> Optional[int]:
     return (parsed.normalize() - today).days
 
 
+def _plural_days(days: int) -> str:
+    return f"{days} day" if days == 1 else f"{days} days"
+
+
 def _expiry_warning(days: Optional[int], warn_days: int) -> Optional[str]:
     if days is None:
         return None
     if days < 0:
-        return f"{AUTO_TAG} IUP sudah berakhir {abs(days)} hari yang lalu"
+        return f"{AUTO_TAG} IUP expired {_plural_days(abs(days))} ago"
     if days <= warn_days:
-        return f"{AUTO_TAG} IUP akan berakhir {days} hari lagi"
+        return f"{AUTO_TAG} IUP expires in {_plural_days(days)}"
     return None
 
 
 def _manual_remark_parts(remark) -> List[str]:
-    """Bagian remark yang diketik manual (peringatan otomatis lama dibuang)."""
+    """Parts of the remark typed by hand (old automatic warnings, including legacy ones, are dropped)."""
     text = "" if pd.isna(remark) else str(remark)
-    return [p for p in text.split(" | ") if p.strip() and not p.startswith(AUTO_TAG)]
+    return [p for p in text.split(" | ") if p.strip() and not p.strip().startswith(ALL_AUTO_TAGS)]
 
 
 def _countdown_and_remarks(df: pd.DataFrame, warn_days: int):
@@ -165,13 +170,13 @@ def _countdown_and_remarks(df: pd.DataFrame, warn_days: int):
     return countdowns, remarks
 
 
-# ---------------------------------------------------------------- API utama
+# ---------------------------------------------------------------- main API
 def validate_vendors(df_vendor: pd.DataFrame, df_minerba: pd.DataFrame, cfg: ValidationSettings) -> pd.DataFrame:
     """
-    1. IUP NAMA vendor dicocokkan ke kolom nama ESDM: cocok -> MINERBAONE 'Valid', tidak -> '-'.
-    2. Jika cocok, kolom IUP vendor diisi dari data ESDM (cfg.field_map).
-    3. IUP COUNTDOWN = sisa hari dari hari ini sampai IUP TANGGAL BERAKHIR.
-    4. REMARK diberi peringatan otomatis jika sisa hari <= cfg.warn_days (atau sudah lewat).
+    1. The vendor's IUP holder name is matched to the ESDM name column: match -> MINERBAONE 'Valid', else '-'.
+    2. On a match, the vendor's IUP columns are filled from the ESDM data (cfg.field_map).
+    3. IUP COUNTDOWN = days from today until the IUP expiry date.
+    4. REMARK gets an automatic warning when the days left <= cfg.warn_days (or the IUP already expired).
     """
     df = df_vendor.copy()
     for column, values in _match_with_minerba(df, df_minerba, cfg).items():

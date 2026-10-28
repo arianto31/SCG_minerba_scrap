@@ -25,7 +25,7 @@ class PhoneTest(unittest.TestCase):
         shown = with_whatsapp_links(df)
         self.assertEqual(shown.loc[0, "no_kontak"], "https://wa.me/6281234567890")
         self.assertIsNone(shown.loc[1, "no_kontak"])
-        self.assertEqual(df.loc[0, "no_kontak"], "0812 3456 7890")  # aslinya tidak berubah
+        self.assertEqual(df.loc[0, "no_kontak"], "0812 3456 7890")  # the original is unchanged
 
 
 if __name__ == "__main__":

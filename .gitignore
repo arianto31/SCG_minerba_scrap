@@ -22,7 +22,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Virtual Environments (sesuaikan jika nama folder venv Anda berbeda)
+# Virtual Environments (adjust if your venv folder has a different name)
 .venv/
 env/
 venv/

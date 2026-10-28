@@ -1,0 +1,29 @@
+# Visual theme and client settings (Streamlit reads this file automatically).
+[theme]
+base = "dark"
+primaryColor = "#6366F1"
+backgroundColor = "#080B14"
+secondaryBackgroundColor = "#121A2C"
+textColor = "#E6E9F2"
+linkColor = "#A5B4FC"
+borderColor = "#222B42"
+showWidgetBorder = true
+baseRadius = "0.65rem"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap, sans-serif"
+codeFont = "monospace"
+
+[theme.sidebar]
+backgroundColor = "#0A0F1D"
+secondaryBackgroundColor = "#131B2E"
+borderColor = "#1C2438"
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = "stacktrace"
+
+[server]
+# Matches the 15 MB limit of the AI document scan (Gemini inline data).
+maxUploadSize = 15
+
+[browser]
+gatherUsageStats = false

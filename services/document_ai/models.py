@@ -1,24 +1,24 @@
-"""Model data ekstraksi dokumen: berkas upload dan skema keluaran yang diminta dari Gemini."""
+"""Document extraction models: uploaded files and the output schema requested from Gemini."""
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
-# Jenis berkas yang diterima Gemini untuk fitur ini.
+# File types accepted by Gemini for this feature.
 ALLOWED_MIME_TYPES = {
     "application/pdf": "PDF",
     "image/jpeg": "JPEG",
     "image/png": "PNG",
     "image/webp": "WEBP",
 }
-# Batas total ukuran permintaan (Gemini membatasi ~20 MB untuk data yang dikirim langsung).
+# Total request size limit (Gemini allows ~20 MB of inline data).
 MAX_TOTAL_BYTES = 15 * 1024 * 1024
 
 
 @dataclass(frozen=True)
 class UploadedDocument:
-    """Satu berkas (foto atau PDF) yang akan dibaca AI."""
+    """One file (photo or PDF) for the AI to read."""
     name: str
     data: bytes
     mime_type: str
@@ -28,18 +28,18 @@ class DocumentType(str, Enum):
     IUP = "IUP"
     NIB = "NIB"
     SURAT_DUKUNGAN = "SURAT_DUKUNGAN"
-    LAINNYA = "LAINNYA"
+    OTHER = "OTHER"
 
 
 DOCUMENT_TYPE_LABELS = {
-    DocumentType.IUP: "IUP (Izin Usaha Pertambangan)",
-    DocumentType.NIB: "NIB (Nomor Induk Berusaha)",
-    DocumentType.SURAT_DUKUNGAN: "Surat Dukungan",
-    DocumentType.LAINNYA: "Dokumen lain / tidak dikenali",
+    DocumentType.IUP: "IUP (Mining Business Permit)",
+    DocumentType.NIB: "NIB (Business Identification Number)",
+    DocumentType.SURAT_DUKUNGAN: "Support Letter (Surat Dukungan)",
+    DocumentType.OTHER: "Other / unrecognised document",
 }
 
-# Kolom tabel vendor yang dapat diisi dari dokumen. Nama field di ExtractedDocument SENGAJA
-# sama dengan nama kolom database sehingga pemetaan tidak butuh tabel konversi.
+# Vendor columns that can be filled from a document. Field names in ExtractedDocument are
+# DELIBERATELY identical to the database column names, so no conversion table is needed.
 FILLABLE_COLUMNS = (
     "vendor",
     "nib_nomor", "golongan", "nib_tanggal", "nib_lokasi",
@@ -51,46 +51,46 @@ FILLABLE_COLUMNS = (
 
 class ExtractedDocument(BaseModel):
     """
-    Skema keluaran Gemini. Semua nilai boleh null: isi null jika informasinya tidak tertulis jelas.
-    Field tanpa nilai bawaan agar Gemini selalu mengembalikan seluruh kunci.
+    Gemini output schema. Every value may be null: use null when the information is not clearly written.
+    Fields have no defaults so Gemini always returns every key.
     """
     document_type: DocumentType = Field(
-        description="Jenis dokumen: IUP, NIB, SURAT_DUKUNGAN, atau LAINNYA bila tidak cocok."
+        description="Document type: IUP, NIB, SURAT_DUKUNGAN, or OTHER when none fits."
     )
     vendor: Optional[str] = Field(
-        description="Nama perusahaan vendor: pemilik NIB, atau penerima dukungan pada surat dukungan. "
-                    "Untuk dokumen IUP isi null (pemegang IUP bukan vendor)."
+        description="Vendor company name: the NIB owner, or the company receiving support in a support letter. "
+                    "For IUP documents use null (the IUP holder is not the vendor)."
     )
-    nib_nomor: Optional[str] = Field(description="Nomor NIB (13 digit) persis seperti tertulis.")
+    nib_nomor: Optional[str] = Field(description="NIB number (13 digits) exactly as written.")
     golongan: Optional[str] = Field(
-        description="Golongan/jenis bahan galian usaha sebagaimana tertulis (mis. Batuan, Pasir, Fly Ash). "
-                    "Null jika tidak tertulis."
+        description="Business/mineral group exactly as written (e.g. Batuan, Pasir, Fly Ash). "
+                    "Null if not written."
     )
-    nib_tanggal: Optional[str] = Field(description="Tanggal terbit NIB, format YYYY-MM-DD.")
-    nib_lokasi: Optional[str] = Field(description="Alamat/lokasi usaha pada NIB.")
-    surat_dukungan_nomor: Optional[str] = Field(description="Nomor surat dukungan persis seperti tertulis.")
-    surat_dukungan_tanggal: Optional[str] = Field(description="Tanggal surat dukungan, format YYYY-MM-DD.")
+    nib_tanggal: Optional[str] = Field(description="NIB issue date, format YYYY-MM-DD.")
+    nib_lokasi: Optional[str] = Field(description="Business address/location on the NIB.")
+    surat_dukungan_nomor: Optional[str] = Field(description="Support letter number exactly as written.")
+    surat_dukungan_tanggal: Optional[str] = Field(description="Support letter date, format YYYY-MM-DD.")
     surat_dukungan_lokasi_quarry: Optional[str] = Field(
-        description="Lokasi quarry/tambang asal material yang disebut pada surat dukungan."
+        description="Quarry/mine location of the material mentioned in the support letter."
     )
     iup_nomor: Optional[str] = Field(
-        description="Nomor izin/SK IUP persis seperti tertulis (termasuk garis miring dan huruf)."
+        description="IUP permit/decree number exactly as written (including slashes and letters)."
     )
     iup_nama: Optional[str] = Field(
-        description="Nama badan usaha PEMEGANG IUP, sesuai penulisan di dokumen (mis. 'PT SUMBER GUNUNG MAJU')."
+        description="Name of the company HOLDING the IUP, as written in the document (e.g. 'PT SUMBER GUNUNG MAJU')."
     )
     iup_bentuk_usaha: Optional[str] = Field(
-        description="Bentuk badan usaha pemegang IUP (PT, CV, Koperasi, Perorangan) bila jelas dari dokumen."
+        description="Legal entity type of the IUP holder (PT, CV, Koperasi, Perorangan) when clear from the document."
     )
     iup_tanggal_terbit: Optional[str] = Field(
-        description="Tanggal IUP ditetapkan/diterbitkan, format YYYY-MM-DD."
+        description="Date the IUP was issued/decided, format YYYY-MM-DD."
     )
     iup_periode: Optional[int] = Field(
-        description="Jangka waktu IUP dalam tahun (angka bulat), hanya jika tertulis eksplisit."
+        description="IUP term in years (whole number), only when written explicitly."
     )
     iup_tanggal_berakhir: Optional[str] = Field(
-        description="Tanggal berakhirnya masa berlaku IUP, format YYYY-MM-DD."
+        description="Date the IUP validity ends, format YYYY-MM-DD."
     )
-    catatan: Optional[str] = Field(
-        description="Catatan singkat: bagian yang buram/tidak terbaca atau meragukan. Null jika tidak ada."
+    notes: Optional[str] = Field(
+        description="Short note in English: parts that are blurry/unreadable or uncertain. Null if none."
     )

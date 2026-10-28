@@ -1,4 +1,4 @@
-"""Export data vendor ke Excel dengan header 2 tingkat (kolom NO sejajar dengan header lain)."""
+"""Export vendor data to Excel with a two-level header (the NO column spans both header rows)."""
 import io
 import re
 from typing import Dict, List, Tuple
@@ -25,11 +25,11 @@ _FIRST_DATA_ROW = 3
 _LINK_FONT = Font(color="0563C1", underline="single")
 
 
-def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Data Vendor") -> bytes:
-    """DataFrame kolom datar (DB_COLS) -> file .xlsx (bytes)."""
+def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Vendor Data") -> bytes:
+    """Flat DataFrame (DB_COLS) -> .xlsx file (bytes)."""
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = re.sub(r"[\\/*?:\[\]]", "", sheet_name)[:31] or "Data Vendor"
+    sheet.title = re.sub(r"[\\/*?:\[\]]", "", sheet_name)[:31] or "Vendor Data"
 
     positions, widths = _write_header(sheet)
     _write_body(sheet, df_flat, positions, widths)
@@ -42,7 +42,7 @@ def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Data Vendor") -> bytes
 
 # ------------------------------------------------------------------ header
 def _header_blocks() -> List[Tuple[str, List[Tuple[str, str]]]]:
-    """Kelompokkan DB_COLS: kolom tunggal, atau grup berisi beberapa sub-kolom."""
+    """Group DB_COLS: single columns, or groups with several sub-columns."""
     blocks, i = [], 0
     while i < len(DB_COLS):
         group, sub = REVERSE_MAPPING[DB_COLS[i]]
@@ -64,7 +64,7 @@ def _header_cell(sheet, row: int, col: int, text):
 
 
 def _write_header(sheet) -> Tuple[Dict[str, int], Dict[int, int]]:
-    """Tulis 2 baris header. Mengembalikan (posisi kolom per kolom DB, lebar awal per kolom)."""
+    """Write the 2 header rows. Returns (sheet column per DB column, initial width per column)."""
     _header_cell(sheet, 1, 1, "NO")
     _header_cell(sheet, 2, 1, None)
     sheet.merge_cells(start_row=1, end_row=2, start_column=1, end_column=1)
@@ -73,7 +73,7 @@ def _write_header(sheet) -> Tuple[Dict[str, int], Dict[int, int]]:
     widths: Dict[int, int] = {1: 5}
     col = 2
     for group, members in _header_blocks():
-        if len(members) == 1 and not members[0][1]:  # kolom tunggal: gabung 2 baris
+        if len(members) == 1 and not members[0][1]:  # single column: merge both header rows
             db_col = members[0][0]
             _header_cell(sheet, 1, col, group)
             _header_cell(sheet, 2, col, None)
@@ -94,7 +94,7 @@ def _write_header(sheet) -> Tuple[Dict[str, int], Dict[int, int]]:
     return positions, widths
 
 
-# ------------------------------------------------------------------ isi data
+# ------------------------------------------------------------------ body
 def _write_body(sheet, df: pd.DataFrame, positions: Dict[str, int], widths: Dict[int, int]) -> None:
     for number, (_, row) in enumerate(df.iterrows(), start=1):
         excel_row = _FIRST_DATA_ROW + number - 1
@@ -111,7 +111,7 @@ def _write_body(sheet, df: pd.DataFrame, positions: Dict[str, int], widths: Dict
 
 
 def _fill_cell(cell, db_col: str, text: str) -> None:
-    """Isi sel: tanggal sebagai tanggal asli, angka sebagai angka, kontak sebagai link WhatsApp, lainnya teks."""
+    """Fill a cell: dates as real dates, numbers as numbers, contacts as WhatsApp links, everything else as text."""
     if db_col == "no_kontak" and text:
         cell.value = text
         url = to_whatsapp_url(text)
@@ -138,4 +138,4 @@ def _apply_layout(sheet, widths: Dict[int, int]) -> None:
         sheet.column_dimensions[get_column_letter(col)].width = max(10, min(width + 3, 48))
     sheet.row_dimensions[1].height = 30
     sheet.row_dimensions[2].height = 22
-    sheet.freeze_panes = "C3"  # NO dan VENDOR tetap terlihat saat digulir
+    sheet.freeze_panes = "C3"  # NO and VENDOR stay visible while scrolling

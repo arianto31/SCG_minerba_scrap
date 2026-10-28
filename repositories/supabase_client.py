@@ -1,4 +1,4 @@
-"""Koneksi Supabase (singleton) dan helper query umum."""
+"""Supabase connection (singleton) and shared query helpers."""
 from typing import Iterator, List, Optional, Sequence, Tuple
 
 from supabase import Client, create_client
@@ -9,11 +9,11 @@ _client: Optional[Client] = None
 
 
 def get_client() -> Client:
-    """Klien Supabase tunggal (dibuat saat pertama dipakai)."""
+    """The single Supabase client (created on first use)."""
     global _client
     if _client is None:
         if not config.SUPABASE_URL or not config.SUPABASE_KEY:
-            raise RuntimeError("SUPABASE_URL dan SUPABASE_KEY belum diatur di file .env")
+            raise RuntimeError("SUPABASE_URL and SUPABASE_KEY are not set in the .env file")
         _client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
     return _client
 
@@ -25,7 +25,7 @@ def fetch_all(
     eq: Optional[Tuple[str, str]] = None,
     page_size: int = 1000,
 ) -> List[dict]:
-    """Ambil seluruh baris. Supabase membatasi 1000 baris per permintaan, jadi diambil per halaman."""
+    """Fetch every row. Supabase caps a request at 1000 rows, so rows are fetched page by page."""
     rows: List[dict] = []
     start = 0
     while True:
