@@ -25,8 +25,17 @@ COLUMN_MAPPING: Dict[Tuple[str, str], str] = {
     ("MINERBAONE", ""): "minerbaone",
     ("SMART COMP", ""): "smart_comp",
     ("Remark", ""): "remark",
+    ("LOCATION", "GOOGLE MAPS"): "lokasi_maps",
 }
-DB_COLS: List[str] = list(COLUMN_MAPPING.values())
+# Columns in the Excel file (and the template), in order.
+EXCEL_COLS: List[str] = list(COLUMN_MAPPING.values())
+
+# App-only columns: stored in the database but not exported to Excel.
+# `iup_renewal` holds the IUP renewal tracker as JSON (see core/renewal.py).
+RENEWAL_COL = "iup_renewal"
+APP_ONLY_COLS: List[str] = [RENEWAL_COL]
+
+DB_COLS: List[str] = EXCEL_COLS + APP_ONLY_COLS
 REVERSE_MAPPING: Dict[str, Tuple[str, str]] = {v: k for k, v in COLUMN_MAPPING.items()}
 
 # English labels shown on screen (NIB = business ID number, IUP = mining business permit).
@@ -51,6 +60,8 @@ DISPLAY_LABELS: Dict[str, str] = {
     "minerbaone": "MinerbaOne",
     "smart_comp": "Smart Comp",
     "remark": "Remark",
+    "lokasi_maps": "Location · Google Maps",
+    "iup_renewal": "IUP Renewal Tracker",
 }
 
 # Date columns (normalized to YYYY-MM-DD on import).
@@ -70,6 +81,8 @@ ALL_AUTO_TAGS = (AUTO_TAG, *LEGACY_AUTO_TAGS)
 
 # Value of the MINERBAONE column when the IUP holder was found in the ESDM data.
 VALID = "Valid"
+# Value of the MINERBAONE column when a user finished the IUP renewal tracker and verified the holder by hand.
+VALID_MANUAL = "Valid (manual)"
 
 # Default vendor list name (stored data from before multiple lists existed; kept for compatibility).
 DEFAULT_TABLE = "Umum"

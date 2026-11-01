@@ -2,6 +2,7 @@
 import pandas as pd
 import streamlit as st
 
+from core import material_groups, required
 from core.schema import DB_COLS, pretty_label
 from core.text_utils import normalize_name
 from core.vendor_status import summarize
@@ -9,6 +10,7 @@ from repositories import vendor_repository
 from services.excel_export import build_excel
 from services.excel_import import ImportResult, parse_vendor_excel
 from ui import state, theme
+from ui.vendor_data import material_group_options
 from ui.styles import build_vendor_column_config, style_rows, table_height, with_status_column
 
 _MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -56,7 +58,10 @@ def render(ctx: state.VendorContext) -> None:
 
 
 def _render_preview_and_import(ctx: state.VendorContext, result: ImportResult) -> None:
-    checked = ctx.validate(result.data)
+    data = result.data.copy()
+    # same spelling as the dropdown, e.g. "batuan " -> "Batuan"
+    data["golongan"] = material_groups.canonical_column(data["golongan"], material_group_options(ctx))
+    checked = ctx.validate(data)
     s = summarize(checked)
     theme.kpi_cards([
         theme.Kpi("Rows read", theme.fmt_int(len(checked)), "from your file", theme.INDIGO),
@@ -84,9 +89,10 @@ def _render_preview_and_import(ctx: state.VendorContext, result: ImportResult) -
             st.info(f"{skipped} row{'s' if skipped != 1 else ''} skipped because they already exist.",
                     icon=":material/info:")
 
+    to_save, blocked = _check_required(ctx, to_save, replace)
     count = len(to_save)
     if st.button(f"Import {count} row{'s' if count != 1 else ''} into '{ctx.table}'", type="primary",
-                 icon=":material/upload:", disabled=count == 0, key="excel_import"):
+                 icon=":material/upload:", disabled=count == 0 or blocked, key="excel_import"):
         with st.spinner("Importing to the cloud database…"):
             records = vendor_repository.records_from_df(to_save, ctx.table)
             vendor_repository.save_records(records, ctx.table, replace=replace)
@@ -94,6 +100,38 @@ def _render_preview_and_import(ctx: state.VendorContext, result: ImportResult) -
         state.invalidate_vendor_data()
         state.set_flash(f"Imported {len(records)} row{'s' if len(records) != 1 else ''} into the list '{ctx.table}'.")
         st.rerun()
+
+
+def _check_required(ctx: state.VendorContext, to_save: pd.DataFrame, replace: bool):
+    """
+    New records need the required fields. Append: incomplete rows are left out (and listed).
+    Replace: rows that are new to the list must be complete, otherwise the import is blocked
+    (leaving them out would delete them). Returns (rows to import, blocked).
+    """
+    checked = required.new_rows(to_save, ctx.saved_df) if replace else to_save
+    incomplete = required.incomplete_rows(checked)
+    if incomplete.empty:
+        return to_save, False
+    count = len(incomplete)
+    rows_text = f"{count} row{'s' if count != 1 else ''}"
+    if replace:
+        st.error(f"{rows_text} in the file {'are' if count != 1 else 'is'} missing required fields. Every new "
+                 f"record needs {required.required_text()}. Fill them in the Excel file and upload it again.",
+                 icon=":material/assignment_late:")
+    else:
+        st.warning(f"{rows_text} will be left out because {'they are' if count != 1 else 'it is'} missing "
+                   f"required fields ({required.required_text()}). Fill them in the Excel file and upload again "
+                   "to include them.", icon=":material/assignment_late:")
+    st.dataframe(
+        pd.DataFrame({
+            "Missing": incomplete[required.MISSING_COLUMN], "Holder Name": incomplete["iup_nama"],
+            "Vendor": incomplete["vendor"], "PIC": incomplete["nama_pic"], "Material Group": incomplete["golongan"],
+        }, index=incomplete.index),
+        width="stretch", height=min(320, 40 + 35 * count),
+    )
+    if replace:
+        return to_save, True
+    return to_save.drop(index=incomplete.index), False
 
 
 def _row_keys(df: pd.DataFrame):

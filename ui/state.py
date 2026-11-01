@@ -25,7 +25,13 @@ KEY_DOC_RESULT = "doc_result"
 KEY_DOC_COUNTER = "doc_counter"
 KEY_SCRAPE_SUMMARY = "scrape_summary"   # summary of the last ESDM refresh
 KEY_VENDOR_SEARCH = "vendor_search"
-KEY_VENDOR_STATUS = "vendor_status_filter"
+KEY_VENDOR_STATUS = "vendor_status_filter"   # KPI card picked to show the table (None = table hidden)
+KEY_TABLE_VER = "vendor_table_ver"           # bumped to clear the table's cell selection
+KEY_DETAIL = "vendor_detail"                 # what the details popup shows: {"kind", "key", "row", "history"}
+KEY_ADD_PENDING = "quick_add_pending"        # quick-add values waiting for "Save anyway" (duplicate check)
+KEY_EDITOR_CONFIRM = "editor_confirm_dup"    # editor save waiting for "Save anyway" (duplicate check)
+KEY_GROUPS_DB = "material_groups_db"         # material groups used in the database (all lists), cached
+KEY_GROUPS_NEW = "material_groups_new"       # groups added in this session that no saved record uses yet
 
 
 @dataclass
@@ -58,6 +64,7 @@ def invalidate_vendor_data() -> None:
     """Force the vendor data to be reloaded from the database on the next render."""
     st.session_state.pop(KEY_WORKING_DF, None)
     st.session_state.pop(KEY_SAVED_DF, None)
+    st.session_state.pop(KEY_GROUPS_DB, None)
 
 
 def discard_edits() -> None:

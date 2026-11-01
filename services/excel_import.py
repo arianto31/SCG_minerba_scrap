@@ -44,6 +44,9 @@ HEADER_ALIASES = {
     "iupentitytype": "iup_bentuk_usaha", "iupissuedate": "iup_tanggal_terbit", "iupterm": "iup_periode",
     "iuptermyears": "iup_periode", "iupexpirydate": "iup_tanggal_berakhir", "expirydate": "iup_tanggal_berakhir",
     "iupdaysleft": "iup_countdown", "notes": "remark",
+    # Google Maps link of the quarry
+    "locationgooglemaps": "lokasi_maps", "googlemaps": "lokasi_maps", "linkgooglemaps": "lokasi_maps",
+    "lokasigooglemaps": "lokasi_maps", "linkmaps": "lokasi_maps", "maps": "lokasi_maps", "mapslink": "lokasi_maps",
 }
 
 # Sub-header labels that mark the second row of a two-level header.

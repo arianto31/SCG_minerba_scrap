@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from core.schema import VALID, has_auto_tag
+from core.schema import VALID, VALID_MANUAL, has_auto_tag
 
-STATUS_VERIFIED = "verified"        # IUP holder found in MinerbaOne, no warning
+STATUS_VERIFIED = "verified"        # IUP holder found in MinerbaOne (or verified by hand), no warning
 STATUS_NOT_FOUND = "not_found"      # IUP holder filled in but not found in MinerbaOne
 STATUS_ATTENTION = "attention"      # IUP expiring soon or already expired
 STATUS_INCOMPLETE = "incomplete"    # no IUP holder name yet
@@ -23,7 +23,7 @@ def _has_iup_name(df: pd.DataFrame) -> pd.Series:
 
 
 def is_valid(df: pd.DataFrame) -> pd.Series:
-    return df["minerbaone"] == VALID
+    return df["minerbaone"].isin([VALID, VALID_MANUAL])
 
 
 def is_not_found(df: pd.DataFrame) -> pd.Series:

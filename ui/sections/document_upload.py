@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 import config
+from core import material_groups, required
 from core.schema import pretty_label
 from repositories import vendor_repository
 from services.document_ai import (
@@ -23,6 +24,7 @@ from services.document_ai import (
 )
 from services.document_ai.models import MAX_TOTAL_BYTES
 from ui import state, theme
+from ui.vendor_data import material_group_options
 from ui.styles import build_vendor_column_config, style_rows, with_status_column
 
 _TARGET_NEW = "Add as a new vendor"
@@ -39,6 +41,7 @@ class _SaveTarget:
     rows: pd.DataFrame      # DataFrame written to the database
     replace: bool           # True = replace the whole list (the 'fill in an existing vendor' mode)
     button_label: str
+    missing: tuple = ()     # required fields still empty (new vendor only); saving is blocked until filled
 
 
 def render(ctx: state.VendorContext) -> None:
@@ -126,6 +129,7 @@ def _render_review(ctx: state.VendorContext, result: dict) -> None:
                "before saving.")
 
     values = _render_value_editor(result)
+    values = _material_group_picker(ctx, result, values)
     if not values:
         st.info("Nothing could be read from this document. Try a sharper photo, or type the data in the "
                 "“Type or edit” tab.", icon=":material/visibility_off:")
@@ -142,14 +146,18 @@ def _render_review(ctx: state.VendorContext, result: dict) -> None:
     if ctx.has_unsaved_edits:
         st.warning("You have unsaved changes in the “Type or edit” tab. Save or discard them first so they "
                    "aren't lost.", icon=":material/edit_note:")
-    if st.button(target.button_label, type="primary", icon=":material/save:", disabled=ctx.has_unsaved_edits,
-                 key="doc_apply"):
+    if target.missing:
+        st.error(f"A new vendor needs {required.required_text()}. Still empty: {', '.join(target.missing)}. "
+                 "Type them in the table above.", icon=":material/assignment_late:")
+    if st.button(target.button_label, type="primary", icon=":material/save:",
+                 disabled=ctx.has_unsaved_edits or bool(target.missing), key="doc_apply"):
         _apply(ctx, target)
 
 
 def _render_value_editor(result: dict) -> Dict[str, str]:
     """Two-column table (field, value) the user can correct. Returns the filled-in values."""
-    rows = [{_FIELD: pretty_label(c), _VALUE: result["values"].get(c, "")} for c in FILLABLE_COLUMNS]
+    columns = _review_columns()
+    rows = [{_FIELD: pretty_label(c), _VALUE: result["values"].get(c, "")} for c in columns]
     edited = st.data_editor(
         pd.DataFrame(rows),
         hide_index=True,
@@ -161,7 +169,42 @@ def _render_value_editor(result: dict) -> Dict[str, str]:
         },
         key=f"doc_values_{result['version']}",
     )
-    return normalize_values(dict(zip(FILLABLE_COLUMNS, edited[_VALUE].tolist())))
+    typed = dict(zip(columns, edited[_VALUE].tolist()))
+    values = normalize_values(typed)
+    for column in _EXTRA_COLUMNS:   # typed by the user (not read by the AI)
+        text = "" if typed.get(column) is None or pd.isna(typed.get(column)) else str(typed[column]).strip()
+        if text:
+            values[column] = text
+    return values
+
+
+# PIC and contact are not on permit documents, but PIC is required for a new vendor: let the user type them.
+_EXTRA_COLUMNS = ("nama_pic", "no_kontak")
+
+
+def _material_group_picker(ctx: state.VendorContext, result: dict, values: Dict[str, str]) -> Dict[str, str]:
+    """Material group as a dropdown (uniform names). The AI's reading is preselected only if it matches a group."""
+    options = material_group_options(ctx)
+    read = material_groups.clean(result["values"].get("golongan", ""))
+    match = material_groups.canonical(read, options)
+    chosen = st.selectbox(
+        "Material Group", options, index=options.index(match) if match in options else None,
+        placeholder="Choose a material group", accept_new_options=True, key=f"doc_group_{result['version']}",
+        help="Choose a group, or type a new one if none fits.",
+    )
+    if read and match not in options:
+        st.caption(f"The AI read “{read}”, which is not in the list. Choose the right group above.")
+    values = {k: v for k, v in values.items() if k != "golongan"}
+    group = material_groups.canonical(chosen, options)
+    if group:
+        values["golongan"] = group
+    return values
+
+
+def _review_columns():
+    """Vendor first, then PIC + contact, then the fields the AI reads."""
+    rest = [c for c in FILLABLE_COLUMNS if c not in ("vendor", "golongan")]   # group: dropdown below
+    return ["vendor", *_EXTRA_COLUMNS, *rest]
 
 
 def _choose_target(ctx: state.VendorContext, values: Dict[str, str]) -> Optional[_SaveTarget]:
@@ -174,7 +217,8 @@ def _choose_target(ctx: state.VendorContext, values: Dict[str, str]) -> Optional
 def _new_row_target(ctx: state.VendorContext, values: Dict[str, str]) -> _SaveTarget:
     row = ctx.validate(pd.DataFrame([new_vendor_row(values)]))
     return _SaveTarget(preview=row, rows=row, replace=False,
-                       button_label=f"Save as a new vendor in '{ctx.table}'")
+                       button_label=f"Save as a new vendor in '{ctx.table}'",
+                       missing=tuple(required.missing_fields(row.iloc[0])))
 
 
 def _existing_row_target(ctx: state.VendorContext, values: Dict[str, str]) -> Optional[_SaveTarget]:

@@ -6,7 +6,8 @@ from typing import Dict, List, Optional
 import pandas as pd
 from rapidfuzz import fuzz, process
 
-from core.schema import ALL_AUTO_TAGS, AUTO_TAG, VALID
+from core import renewal
+from core.schema import ALL_AUTO_TAGS, AUTO_TAG, RENEWAL_COL, VALID, VALID_MANUAL
 from core.text_utils import is_blank, normalize_name, parse_date
 
 # Vendor columns filled from the ESDM table: (candidate column names, fallback keywords).
@@ -170,6 +171,29 @@ def _countdown_and_remarks(df: pd.DataFrame, warn_days: int):
     return countdowns, remarks
 
 
+# ---------------------------------------------------------------- IUP renewal tracker
+def _apply_completed_renewals(df: pd.DataFrame) -> None:
+    """
+    A holder whose renewal tracker was completed and verified by a user:
+    - keeps the new expiry date entered on verification while MinerbaOne still shows the old (earlier) one;
+    - counts as verified ('Valid (manual)') even if MinerbaOne does not list the holder (yet).
+    Applied to every row of that holder, so all vendors / PICs using it agree.
+    """
+    trackers = renewal.by_holder(df, RENEWAL_COL)
+    if not trackers:
+        return
+    for label, name in df["iup_nama"].map(normalize_name).items():
+        tracker = trackers.get(name)
+        if tracker is None or not tracker.is_verified:
+            continue
+        if tracker.renewed_until and renewal.later_date(df.at[label, "iup_tanggal_berakhir"], tracker.renewed_until):
+            df.at[label, "iup_tanggal_berakhir"] = tracker.renewed_until
+            if tracker.new_iup_number:
+                df.at[label, "iup_nomor"] = tracker.new_iup_number
+        if df.at[label, "minerbaone"] != VALID:
+            df.at[label, "minerbaone"] = VALID_MANUAL
+
+
 # ---------------------------------------------------------------- main API
 def validate_vendors(df_vendor: pd.DataFrame, df_minerba: pd.DataFrame, cfg: ValidationSettings) -> pd.DataFrame:
     """
@@ -181,6 +205,7 @@ def validate_vendors(df_vendor: pd.DataFrame, df_minerba: pd.DataFrame, cfg: Val
     df = df_vendor.copy()
     for column, values in _match_with_minerba(df, df_minerba, cfg).items():
         df[column] = pd.Series(values, index=df.index, dtype=object)
+    _apply_completed_renewals(df)
 
     countdowns, remarks = _countdown_and_remarks(df, cfg.warn_days)
     df["iup_countdown"] = pd.Series(countdowns, index=df.index, dtype=object)

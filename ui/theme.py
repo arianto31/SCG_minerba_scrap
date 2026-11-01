@@ -1,7 +1,7 @@
 """Design system: global CSS plus small HTML building blocks (page header, KPI cards, steps, legend, brand)."""
 import html
 from dataclasses import dataclass
-from typing import Iterable, Sequence, Tuple
+from typing import Callable, Iterable, Optional, Sequence, Tuple
 
 import streamlit as st
 
@@ -50,7 +50,8 @@ button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--q-indigo)
 [data-testid="stExpander"] details{border-radius:14px; border-color:var(--q-border); background:var(--q-surface);}
 [data-testid="stForm"]{border-radius:18px; border-color:var(--q-border-strong); background:var(--q-surface); padding:1.4rem 1.4rem 1rem;
   box-shadow:0 20px 60px rgba(0,0,0,.35);}
-[data-testid="stDataFrame"]{border-radius:12px; overflow:hidden;}
+/* no overflow:hidden here: it clips the table toolbar (delete rows, search, download) that sits above the grid */
+[data-testid="stDataFrame"]{border-radius:12px;}
 [data-testid="stFileUploaderDropzone"]{border-radius:14px; border:1px dashed rgba(129,140,248,.45); background:rgba(99,102,241,.05);}
 [data-testid="stAlert"]{border-radius:12px;}
 [data-testid="stPopoverBody"]{border-radius:14px; border:1px solid var(--q-border-strong);}
@@ -84,6 +85,54 @@ button[data-testid^="stBaseButton-secondary"]:hover{border-color:var(--q-indigo)
 .q-dot{width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent);}
 .q-kpi-value{font-size:1.95rem; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums; color:#F8FAFC; letter-spacing:-.02em;}
 .q-kpi-caption{font-size:.76rem; color:var(--q-muted); margin-top:2px;}
+
+/* ---------- clickable KPI cards (same card, an invisible button on top) ---------- */
+[class*="st-key-qkpicard_"]{position:relative; gap:0!important;}
+[class*="st-key-qkpicard_"] .q-kpi{min-height:132px; cursor:pointer;
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease;}
+[class*="st-key-qkpicard_"]:hover .q-kpi{transform:translateY(-2px); border-color:var(--accent);
+  box-shadow:0 14px 34px -18px var(--accent);}
+[class*="st-key-qkpicard_"]:has(button:focus-visible) .q-kpi{outline:2px solid var(--accent); outline-offset:2px;}
+[class*="st-key-qkpibtn_"]{position:absolute!important; inset:0; z-index:3; margin:0!important;}
+[class*="st-key-qkpibtn_"] [data-testid="stButton"], [class*="st-key-qkpibtn_"] button{width:100%!important; height:100%!important;}
+[class*="st-key-qkpibtn_"] button{opacity:0; cursor:pointer; min-height:0; padding:0;}
+.q-kpi.is-active{border-color:var(--accent); background:linear-gradient(180deg,rgba(30,40,70,.96),rgba(14,20,36,.94));
+  box-shadow:0 0 0 1px var(--accent) inset, 0 16px 38px -16px var(--accent);}
+.q-kpi.is-active::after{opacity:.2;}
+.q-kpi-hint{font-size:.72rem; margin-top:10px; color:var(--accent); font-weight:600; opacity:.9;}
+
+/* ---------- detail dialog ---------- */
+.q-dhead{padding:2px 0 12px; border-bottom:1px solid var(--q-border); margin-bottom:4px;}
+.q-dhead-eyebrow{font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--q-cyan); font-weight:650;}
+.q-dhead-title{font-size:1.4rem; font-weight:720; color:#F8FAFC; line-height:1.25; margin-top:2px; word-break:break-word;}
+.q-dhead-sub{font-size:.86rem; color:var(--q-muted); margin-top:3px;}
+.q-badges{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+.q-badge{display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:.76rem; font-weight:600;
+  color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 38%, transparent);}
+.q-dcard{border:1px solid var(--q-border); border-radius:14px; background:rgba(20,27,46,.55); padding:12px 16px 8px; margin:10px 0 4px;}
+.q-dcard-title{font-size:.7rem; letter-spacing:.13em; text-transform:uppercase; color:var(--q-muted); font-weight:700; margin-bottom:4px;}
+.q-field{display:grid; grid-template-columns:minmax(130px,36%) 1fr; gap:14px; padding:7px 0;
+  border-top:1px solid rgba(148,163,184,.08); font-size:.9rem; line-height:1.45;}
+.q-dcard-title + .q-field{border-top:0;}
+.q-field-label{color:var(--q-muted);}
+.q-field-value{color:#E2E8F0; word-break:break-word;}
+.q-field-value.is-empty{color:#475569;}
+.q-dialog a, .q-field-value a{color:#67E8F9; text-decoration:none; font-weight:550;}
+.q-dialog a:hover, .q-field-value a:hover{text-decoration:underline;}
+.q-person{display:flex; align-items:center; gap:12px; padding:9px 0; border-top:1px solid rgba(148,163,184,.08);}
+.q-dcard-title + .q-person{border-top:0;}
+.q-person-main{flex:1; min-width:0;}
+.q-person-name{color:#E2E8F0; font-weight:600; font-size:.92rem;}
+.q-person-sub{color:var(--q-muted); font-size:.8rem; margin-top:1px;}
+.q-wa{flex:none; font-size:.8rem; padding:4px 10px; border-radius:999px; border:1px solid rgba(52,211,153,.4);
+  background:rgba(52,211,153,.1);}
+.q-wa, .q-wa:hover{color:#6EE7B7!important;}
+.q-progress{height:8px; border-radius:999px; background:rgba(148,163,184,.14); overflow:hidden; margin:8px 0 4px;}
+.q-progress > span{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#6366F1,#22D3EE);}
+.q-progress-text{display:flex; justify-content:space-between; gap:10px; font-size:.8rem; color:var(--q-muted); flex-wrap:wrap;}
+.q-note{font-size:.84rem; color:#CBD5E1; line-height:1.5;}
+@media (max-width: 640px){ .q-field{grid-template-columns:1fr; gap:2px;} }
 
 /* ---------- steps ---------- */
 .q-steps{display:flex; flex-wrap:wrap; gap:8px; margin:.35rem 0 .9rem; align-items:center;}
@@ -172,15 +221,109 @@ class Kpi:
     accent: str = INDIGO
 
 
-def kpi_cards(items: Sequence[Kpi]) -> None:
-    cards = "".join(
-        f'<div class="q-kpi" style="--accent:{item.accent}">'
+def _kpi_card(item: Kpi, active: bool = False, hint: str = "") -> str:
+    hint_html = f'<div class="q-kpi-hint">{_e(hint)}</div>' if hint else ""
+    return (
+        f'<div class="q-kpi{" is-active" if active else ""}" style="--accent:{item.accent}">'
         f'<div class="q-kpi-label"><span class="q-dot"></span>{_e(item.label)}</div>'
         f'<div class="q-kpi-value">{_e(item.value)}</div>'
-        f'<div class="q-kpi-caption">{_e(item.caption)}</div></div>'
-        for item in items
+        f'<div class="q-kpi-caption">{_e(item.caption)}</div>{hint_html}</div>'
     )
-    _render(f'<div class="q-kpis">{cards}</div>')
+
+
+def kpi_cards(items: Sequence[Kpi]) -> None:
+    _render(f'<div class="q-kpis">{"".join(_kpi_card(item) for item in items)}</div>')
+
+
+def clickable_kpi_cards(items: Sequence[Tuple[str, Kpi]], active: Optional[str], on_click: Callable[[str], None]) -> None:
+    """
+    The same KPI cards, but each card is a button: `on_click(key)` runs when a card is clicked.
+    The active card is highlighted. (A transparent st.button is laid over the HTML card.)
+    """
+    columns = st.columns(len(items), gap="small")
+    for column, (key, item) in zip(columns, items):
+        is_active = key == active
+        with column, st.container(key=f"qkpicard_{key}"):
+            _render(_kpi_card(item, is_active, "Showing below · click to hide" if is_active else "Click to view list →"))
+            st.button(f"{'Hide' if is_active else 'Show'} {item.label}", key=f"qkpibtn_{key}",
+                      on_click=on_click, args=(key,))
+
+
+# ------------------------------------------------------------------ detail dialog building blocks
+def badge(text: str, color: str) -> str:
+    return f'<span class="q-badge" style="--accent:{color}">{_e(text)}</span>'
+
+
+def link(url: str, text: str, css_class: str = "") -> str:
+    """External link (opens in a new tab). Only http(s) URLs are turned into links."""
+    if not str(url).lower().startswith(("http://", "https://")):
+        return _e(text)
+    cls = f' class="{css_class}"' if css_class else ""
+    return f'<a href="{_e(url)}" target="_blank" rel="noopener noreferrer"{cls}>{_e(text)}</a>'
+
+
+def detail_header(eyebrow: str, title: str, subtitle: str = "", badges: Sequence[str] = ()) -> None:
+    sub = f'<div class="q-dhead-sub">{_e(subtitle)}</div>' if subtitle else ""
+    chips = f'<div class="q-badges">{"".join(badges)}</div>' if badges else ""
+    _render(f'<div class="q-dialog q-dhead"><div class="q-dhead-eyebrow">{_e(eyebrow)}</div>'
+            f'<div class="q-dhead-title">{_e(title)}</div>{sub}{chips}</div>')
+
+
+def detail_title(text: str) -> None:
+    """Small uppercase heading between popup sections."""
+    _render(f'<div class="q-dcard-title" style="margin:18px 0 2px">{_e(text)}</div>')
+
+
+@dataclass(frozen=True)
+class Field:
+    label: str
+    value: str = ""
+    html: str = ""   # pre-built HTML (e.g. a link); used instead of `value` when given
+
+
+def detail_card(title: str, fields: Sequence[Field]) -> None:
+    """Card with label / value rows stacked top to bottom (no sideways scrolling)."""
+    rows = []
+    for item in fields:
+        text = str(item.value or "").strip()
+        if item.html:
+            value = f'<div class="q-field-value">{item.html}</div>'
+        elif text:
+            value = f'<div class="q-field-value">{_e(text)}</div>'
+        else:
+            value = '<div class="q-field-value is-empty">—</div>'
+        rows.append(f'<div class="q-field"><div class="q-field-label">{_e(item.label)}</div>{value}</div>')
+    _render(f'<div class="q-dialog q-dcard"><div class="q-dcard-title">{_e(title)}</div>{"".join(rows)}</div>')
+
+
+@dataclass(frozen=True)
+class Person:
+    name: str
+    subtitle: str = ""
+    whatsapp_url: str = ""
+    contact_text: str = ""
+
+
+def people_card(title: str, people: Sequence[Person], empty_text: str = "Nobody recorded yet.") -> None:
+    rows = []
+    for person in people:
+        initials = "".join(part[0] for part in person.name.split()[:2]).upper() or "?"
+        contact = (link(person.whatsapp_url, f"WhatsApp {person.contact_text}".strip(), "q-wa")
+                   if person.whatsapp_url else
+                   f'<span class="q-person-sub">{_e(person.contact_text or "No contact")}</span>')
+        rows.append(
+            f'<div class="q-person"><div class="q-avatar">{_e(initials)}</div>'
+            f'<div class="q-person-main"><div class="q-person-name">{_e(person.name)}</div>'
+            f'<div class="q-person-sub">{_e(person.subtitle)}</div></div>{contact}</div>'
+        )
+    body = "".join(rows) or f'<div class="q-note">{_e(empty_text)}</div>'
+    _render(f'<div class="q-dialog q-dcard"><div class="q-dcard-title">{_e(title)}</div>{body}</div>')
+
+
+def progress(done: int, total: int, left_text: str, right_text: str = "") -> None:
+    share = 0 if not total else round(100 * done / total)
+    _render(f'<div class="q-progress"><span style="width:{share}%"></span></div>'
+            f'<div class="q-progress-text"><span>{_e(left_text)}</span><span>{_e(right_text)}</span></div>')
 
 
 def steps(labels: Iterable[str]) -> None:

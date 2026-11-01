@@ -9,7 +9,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from core.phone import to_whatsapp_url
-from core.schema import DATE_COLS, DB_COLS, REVERSE_MAPPING
+from core.schema import DATE_COLS, EXCEL_COLS, REVERSE_MAPPING
 from core.text_utils import parse_date
 
 _THIN = Side(style="thin", color="BFBFBF")
@@ -26,7 +26,7 @@ _LINK_FONT = Font(color="0563C1", underline="single")
 
 
 def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Vendor Data") -> bytes:
-    """Flat DataFrame (DB_COLS) -> .xlsx file (bytes)."""
+    """Flat DataFrame (EXCEL_COLS; app-only columns are left out) -> .xlsx file (bytes)."""
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = re.sub(r"[\\/*?:\[\]]", "", sheet_name)[:31] or "Vendor Data"
@@ -42,17 +42,17 @@ def build_excel(df_flat: pd.DataFrame, sheet_name: str = "Vendor Data") -> bytes
 
 # ------------------------------------------------------------------ header
 def _header_blocks() -> List[Tuple[str, List[Tuple[str, str]]]]:
-    """Group DB_COLS: single columns, or groups with several sub-columns."""
+    """Group EXCEL_COLS: single columns, or groups with several sub-columns."""
     blocks, i = [], 0
-    while i < len(DB_COLS):
-        group, sub = REVERSE_MAPPING[DB_COLS[i]]
+    while i < len(EXCEL_COLS):
+        group, sub = REVERSE_MAPPING[EXCEL_COLS[i]]
         if not sub:
-            blocks.append((group, [(DB_COLS[i], "")]))
+            blocks.append((group, [(EXCEL_COLS[i], "")]))
             i += 1
             continue
         members = []
-        while i < len(DB_COLS) and REVERSE_MAPPING[DB_COLS[i]][0] == group and REVERSE_MAPPING[DB_COLS[i]][1]:
-            members.append((DB_COLS[i], REVERSE_MAPPING[DB_COLS[i]][1]))
+        while i < len(EXCEL_COLS) and REVERSE_MAPPING[EXCEL_COLS[i]][0] == group and REVERSE_MAPPING[EXCEL_COLS[i]][1]:
+            members.append((EXCEL_COLS[i], REVERSE_MAPPING[EXCEL_COLS[i]][1]))
             i += 1
         blocks.append((group, members))
     return blocks
@@ -118,6 +118,11 @@ def _fill_cell(cell, db_col: str, text: str) -> None:
         if url:
             cell.hyperlink = url
             cell.font = _LINK_FONT
+        return
+    if db_col == "lokasi_maps" and text.lower().startswith(("http://", "https://")):
+        cell.value = text
+        cell.hyperlink = text
+        cell.font = _LINK_FONT
         return
     if db_col in DATE_COLS and text:
         parsed = parse_date(text)

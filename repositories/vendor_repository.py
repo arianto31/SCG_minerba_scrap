@@ -4,7 +4,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from core.schema import AUTO_COLS, DB_COLS, DEFAULT_TABLE, INT_COLS
+from core.schema import APP_ONLY_COLS, AUTO_COLS, DB_COLS, DEFAULT_TABLE, INT_COLS
 from core.text_utils import to_int_str
 from repositories.supabase_client import chunks, fetch_all, get_client
 
@@ -15,9 +15,9 @@ _SCHEMA_FILE = Path(__file__).resolve().parent.parent / "sql" / "schema.sql"
 
 # ------------------------------------------------------------------ schema & list names
 def schema_ready() -> bool:
-    """True when the `kategori` and `golongan` columns exist."""
+    """True when every column the app needs exists (`kategori`, `golongan`, `lokasi_maps`, `iup_renewal`)."""
     try:
-        get_client().table(VENDOR_TABLE).select("kategori,golongan").limit(1).execute()
+        get_client().table(VENDOR_TABLE).select("kategori,golongan,lokasi_maps,iup_renewal").limit(1).execute()
         return True
     except Exception:
         return False
@@ -56,6 +56,12 @@ def register_table(name: str) -> None:
         pass
 
 
+def fetch_material_groups() -> List[str]:
+    """Every material group (golongan) used in any vendor list."""
+    rows = fetch_all(VENDOR_TABLE, columns="golongan", order_col="id")
+    return [str(r["golongan"]) for r in rows if r.get("golongan")]
+
+
 # ------------------------------------------------------------------ read / write vendors
 def fetch_vendors(table: str) -> pd.DataFrame:
     """One vendor list as a text DataFrame (columns = DB_COLS, index = NO)."""
@@ -73,7 +79,7 @@ def fetch_vendors(table: str) -> pd.DataFrame:
 
 def records_from_df(df: pd.DataFrame, table: str) -> List[Dict[str, object]]:
     """DataFrame -> Supabase records. Empty cells become NULL; rows without any manual input are skipped."""
-    manual_cols = [c for c in DB_COLS if c not in AUTO_COLS + ["remark"]]
+    manual_cols = [c for c in DB_COLS if c not in AUTO_COLS + APP_ONLY_COLS + ["remark"]]
     records = []
     for _, row in df.iterrows():
         record = {}
