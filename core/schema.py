@@ -11,7 +11,9 @@ COLUMN_MAPPING: Dict[Tuple[str, str], str] = {
     ("NIB (NOMOR INDUK BERUSAHA)", "NOMOR"): "nib_nomor",
     ("GOLONGAN", ""): "golongan",
     ("NIB (NOMOR INDUK BERUSAHA)", "TANGGAL"): "nib_tanggal",
-    ("NIB (NOMOR INDUK BERUSAHA)", "LOKASI"): "nib_lokasi",
+    # Material allocation. The column keeps its old database name (`nib_lokasi`) so stored data stays
+    # untouched; old Excel files with "NIB … LOKASI" still import (services/excel_import.py).
+    ("ALOKASI", ""): "nib_lokasi",
     ("SURAT DUKUNGAN", "NOMOR"): "surat_dukungan_nomor",
     ("SURAT DUKUNGAN", "TANGGAL"): "surat_dukungan_tanggal",
     ("SURAT DUKUNGAN", "LOKASI QUARRY"): "surat_dukungan_lokasi_quarry",
@@ -46,7 +48,7 @@ DISPLAY_LABELS: Dict[str, str] = {
     "nib_nomor": "NIB · Number",
     "golongan": "Material Group",
     "nib_tanggal": "NIB · Date",
-    "nib_lokasi": "NIB · Location",
+    "nib_lokasi": "Allocation",
     "surat_dukungan_nomor": "Support Letter · Number",
     "surat_dukungan_tanggal": "Support Letter · Date",
     "surat_dukungan_lokasi_quarry": "Support Letter · Quarry Location",

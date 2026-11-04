@@ -27,6 +27,7 @@ _COLUMN_HELP = {
     "nama_pic": "Person in charge at the vendor.",
     "nib_nomor": "NIB = Nomor Induk Berusaha (business identification number), 13 digits.",
     "golongan": "Material group, e.g. Batuan, Pasir, Fly Ash.",
+    "nib_lokasi": "Material allocation: where this material is allocated.",
     "surat_dukungan_nomor": "Support letter (surat dukungan) from the quarry owner.",
     "iup_nama": "Company holding the IUP (mining business permit). Checked against MinerbaOne.",
     "iup_tanggal_berakhir": "Date the IUP stops being valid.",

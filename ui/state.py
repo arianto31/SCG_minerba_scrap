@@ -10,6 +10,9 @@ from core.validation import ValidationSettings, validate_vendors
 
 # ---- session_state keys (one place, easy to trace) ----
 KEY_AUTH_USER = "auth_user"        # username currently signed in
+KEY_JUST_SIGNED_IN = "just_signed_in"   # True for the first run after signing in (shows the loading screen)
+KEY_LOGIN_ERROR = "login_error"    # message shown under the sign-in form after a failed attempt
+KEY_THEME_MODE = "theme_mode"      # "light" or "dark" (see ui/appearance.py); kept when signing out
 KEY_SCHEMA_OK = "schema_ok"
 KEY_FLASH = "flash"
 KEY_TABLE_NAMES = "table_names"

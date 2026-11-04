@@ -19,6 +19,7 @@ _FORM = (
         ("nama_pic", "PIC name *", "Person in charge at the vendor"),
         ("no_kontak", "Contact no.", "0812… or 62812… (becomes a WhatsApp link)"),
         ("golongan", "Material group *", "Choose a group, or type a new one if none fits"),
+        ("nib_lokasi", "Allocation", "Where the material is allocated"),
     ]),
     ("IUP (mining business permit)", [
         ("iup_nama", "IUP holder name *", "Checked against MinerbaOne automatically"),
@@ -31,7 +32,6 @@ _FORM = (
     ("NIB (business ID number)", [
         ("nib_nomor", "NIB number", "13 digits"),
         ("nib_tanggal", "NIB date", ""),
-        ("nib_lokasi", "NIB location", "Address on the NIB"),
     ]),
     ("Support letter", [
         ("surat_dukungan_nomor", "Letter number", ""),

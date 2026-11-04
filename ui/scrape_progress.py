@@ -1,4 +1,5 @@
-"""Scraping progress display: a small, minimal card (HTML + CSS) updated live on screen."""
+"""Scraping progress display: a small, minimal card (HTML + CSS) updated live on screen.
+Colors come from the light/dark variables defined in ui/theme.py."""
 import html
 import time
 from typing import Optional
@@ -17,25 +18,25 @@ _STAGE_TITLE = {
 _WEIGHTS = {STAGE_COMPANIES: (0, 5), STAGE_PERMITS: (5, 90), STAGE_SAVE: (90, 100)}
 
 _CSS = """<style>
-.sp{max-width:460px;padding:14px 16px;border:1px solid rgba(148,163,184,.18);border-radius:14px;font-size:.82rem;line-height:1.4;margin:6px 0;background:linear-gradient(180deg,rgba(22,30,52,.9),rgba(13,18,32,.9))}
-.sp-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(5,8,16,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-.sp-overlay .sp{width:min(420px,90vw);padding:20px 22px;margin:0;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.sp{max-width:460px;padding:14px 16px;border:1px solid var(--q-border-strong);border-radius:14px;font-size:.82rem;line-height:1.4;margin:6px 0;background:var(--q-kpi-bg);box-shadow:var(--q-card-shadow)}
+.sp-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:var(--q-overlay);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sp-overlay .sp{width:min(420px,90vw);padding:20px 22px;margin:0;box-shadow:var(--q-shadow-lg)}
 .sp-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;gap:10px}
-.sp-title{font-weight:600;color:#F1F5F9}
-.sp-pct{color:#A5B4FC;font-weight:600;font-variant-numeric:tabular-nums}
-.sp-track{height:6px;border-radius:99px;background:rgba(148,163,184,.16);overflow:hidden}
+.sp-title{font-weight:600;color:var(--q-heading)}
+.sp-pct{color:var(--q-pct);font-weight:600;font-variant-numeric:tabular-nums}
+.sp-track{height:6px;border-radius:99px;background:var(--q-track);overflow:hidden}
 .sp-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6366F1,#22D3EE);box-shadow:0 0 12px rgba(34,211,238,.45);transition:width .25s ease}
 .sp-fill.busy{width:30%;animation:sp-slide 1.1s ease-in-out infinite}
 .sp-fill.ok{background:linear-gradient(90deg,#10B981,#34D399);box-shadow:none}
 .sp-fill.err{background:#F87171;box-shadow:none}
 @keyframes sp-slide{0%{margin-left:-30%}100%{margin-left:100%}}
-.sp-meta{margin-top:9px;color:#94A3B8;font-variant-numeric:tabular-nums}
-.sp-steps{display:flex;gap:14px;margin-top:10px;font-size:.74rem;color:#CBD5E1}
+.sp-meta{margin-top:9px;color:var(--q-muted);font-variant-numeric:tabular-nums}
+.sp-steps{display:flex;gap:14px;margin-top:10px;font-size:.74rem;color:var(--q-text-soft)}
 .sp-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(148,163,184,.45);margin-right:6px}
 .sp-step.on .sp-dot{background:#818CF8;box-shadow:0 0 0 3px rgba(129,140,248,.25)}
 .sp-step.done .sp-dot{background:#34D399}
-.sp-warn{color:#FBBF24}
-.sp-hint{margin-top:10px;font-size:.74rem;color:#64748B}
+.sp-warn{color:color-mix(in srgb,#FBBF24 var(--q-accent-ink),var(--q-heading))}
+.sp-hint{margin-top:10px;font-size:.74rem;color:var(--q-faint)}
 </style>"""
 
 

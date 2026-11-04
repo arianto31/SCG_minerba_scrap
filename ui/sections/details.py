@@ -127,7 +127,7 @@ def _maps_link(rows: pd.DataFrame) -> str:
 
 
 def _maps_search_url(row: pd.Series) -> str:
-    place = _text(row.get("surat_dukungan_lokasi_quarry")) or _text(row.get("nib_lokasi"))
+    place = _text(row.get("surat_dukungan_lokasi_quarry"))
     if not place:
         return ""
     return f"https://www.google.com/maps/search/?api=1&query={quote_plus(place)}"
@@ -211,6 +211,7 @@ def _record_cards(row: pd.Series) -> None:
         theme.Field("PIC name", _text(row["nama_pic"])),
         theme.Field("Contact no.", _text(row["no_kontak"]), html=_contact_html(row["no_kontak"])),
         theme.Field("Material group", _text(row["golongan"])),
+        theme.Field("Allocation", _text(row["nib_lokasi"])),
     ])
     theme.detail_card("IUP (mining business permit)", [
         theme.Field("Holder name", _text(row["iup_nama"])),
@@ -229,7 +230,6 @@ def _record_cards(row: pd.Series) -> None:
     theme.detail_card("NIB (business ID number)", [
         theme.Field("NIB number", _text(row["nib_nomor"])),
         theme.Field("NIB date", _fmt_date(row["nib_tanggal"])),
-        theme.Field("NIB location", _text(row["nib_lokasi"])),
     ])
     theme.detail_card("Support letter", [
         theme.Field("Letter number", _text(row["surat_dukungan_nomor"])),
@@ -243,7 +243,6 @@ def _location_section(ctx: state.VendorContext, key: str, rows: pd.DataFrame, ro
     theme.detail_card("Location", [
         theme.Field("Google Maps", html=theme.link(maps, "Open in Google Maps ↗") if maps else ""),
         theme.Field("Quarry location", _text(row["surat_dukungan_lokasi_quarry"])),
-        theme.Field("NIB location", _text(row["nib_lokasi"])),
     ])
     if maps:
         container = st.expander("Change the Google Maps link", icon=":material/edit_location_alt:")
@@ -407,9 +406,9 @@ def _vendor_view(ctx: state.VendorContext, df: pd.DataFrame, target: dict) -> No
     theme.detail_card("Vendor details", [
         theme.Field("Vendor", name),
         theme.Field("Material groups", _joined(rows["golongan"])),
+        theme.Field("Allocation", _joined(rows["nib_lokasi"])),
         theme.Field("NIB number", _joined(rows["nib_nomor"])),
         theme.Field("NIB date", _joined(rows["nib_tanggal"].map(_fmt_date))),
-        theme.Field("NIB location", _joined(rows["nib_lokasi"])),
         theme.Field("Smart Comp", _joined(rows["smart_comp"])),
     ])
     theme.people_card(f"Contacts / PIC ({len(_people(rows))})", _people(rows), "No PIC recorded for this vendor yet.")

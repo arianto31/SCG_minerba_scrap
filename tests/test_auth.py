@@ -110,23 +110,39 @@ class LoginFlowTest(unittest.TestCase):
             self.addCleanup(p.stop)
         self.users = parse_users(self.users_raw)
 
-    def test_correct_login_sets_session_and_reruns(self):
-        with self.assertRaises(RerunApp):
-            login._attempt_login(self.users, "  ADMIN ", "benar-benar-1")
+    def test_correct_login_sets_session(self):
+        self.assertIsNone(login._attempt_login(self.users, "  ADMIN ", "benar-benar-1"))
         self.assertEqual(self.fake_st.session_state[state.KEY_AUTH_USER], "admin")
+        self.assertTrue(self.fake_st.session_state[state.KEY_JUST_SIGNED_IN])   # shows the loading screen once
 
     def test_wrong_password_and_unknown_user_share_same_message(self):
-        login._attempt_login(self.users, "admin", "salah")
-        login._attempt_login(self.users, "tidak-ada", "benar-benar-1")
-        self.assertEqual(self.errors, [login.MSG_WRONG_CREDENTIALS] * 2)
+        errors = [login._attempt_login(self.users, "admin", "salah"),
+                  login._attempt_login(self.users, "tidak-ada", "benar-benar-1")]
+        self.assertEqual(errors, [login.MSG_WRONG_CREDENTIALS] * 2)
         self.assertNotIn(state.KEY_AUTH_USER, self.fake_st.session_state)
+
+    def test_empty_fields_are_rejected_without_counting_as_failure(self):
+        self.assertEqual(login._attempt_login(self.users, " ", "x"), login.MSG_MISSING_FIELDS)
+        self.assertEqual(login._attempt_login(self.users, "admin", ""), login.MSG_MISSING_FIELDS)
+        self.assertIsNone(login._attempt_login(self.users, "admin", "benar-benar-1"))
+
+    def test_submit_callback_stores_error_and_clears_password(self):
+        self.fake_st.session_state.update({login._USER_KEY: "admin", login._PASS_KEY: "salah"})
+        login._on_submit(self.users)
+        self.assertEqual(self.fake_st.session_state[state.KEY_LOGIN_ERROR], login.MSG_WRONG_CREDENTIALS)
+        self.assertEqual(self.fake_st.session_state[login._PASS_KEY], "")
 
     def test_lockout_blocks_even_correct_password(self):
         for _ in range(5):
             login._attempt_login(self.users, "admin", "salah")
-        login._attempt_login(self.users, "admin", "benar-benar-1")      # correct, but currently locked
-        self.assertIn("Too many failed attempts", self.errors[-1])
+        error = login._attempt_login(self.users, "admin", "benar-benar-1")      # correct, but currently locked
+        self.assertIn("Too many failed attempts", error)
         self.assertNotIn(state.KEY_AUTH_USER, self.fake_st.session_state)
+
+    def test_logout_keeps_theme_choice(self):
+        self.fake_st.session_state.update({state.KEY_AUTH_USER: "admin", state.KEY_THEME_MODE: "light", "x": 1})
+        login.logout()
+        self.assertEqual(self.fake_st.session_state, {state.KEY_THEME_MODE: "light"})
 
     def test_require_login_blocks_app_until_authenticated(self):
         with self.assertRaises(StopApp):

@@ -67,7 +67,9 @@ class ExtractedDocument(BaseModel):
                     "Null if not written."
     )
     nib_tanggal: Optional[str] = Field(description="NIB issue date, format YYYY-MM-DD.")
-    nib_lokasi: Optional[str] = Field(description="Business address/location on the NIB.")
+    nib_lokasi: Optional[str] = Field(
+        description="Material allocation: where the material is allocated, only when the document states it "
+                    "explicitly. Not the business address. Otherwise null.")
     surat_dukungan_nomor: Optional[str] = Field(description="Support letter number exactly as written.")
     surat_dukungan_tanggal: Optional[str] = Field(description="Support letter date, format YYYY-MM-DD.")
     surat_dukungan_lokasi_quarry: Optional[str] = Field(

@@ -18,7 +18,8 @@ HEADER_ALIASES = {
     "nibnomor": "nib_nomor", "nib": "nib_nomor",
     "golongan": "golongan", "golonganusaha": "golongan", "jenisgolongan": "golongan",
     "nibtanggal": "nib_tanggal",
-    "niblokasi": "nib_lokasi", "lokasi": "nib_lokasi",
+    # Material allocation (older files called this column "NIB … LOKASI").
+    "alokasi": "nib_lokasi", "alokasimaterial": "nib_lokasi", "niblokasi": "nib_lokasi", "lokasi": "nib_lokasi",
     "suratdukungannomor": "surat_dukungan_nomor",
     "suratdukungantanggal": "surat_dukungan_tanggal",
     "suratdukunganlokasiquarry": "surat_dukungan_lokasi_quarry",
@@ -38,6 +39,7 @@ HEADER_ALIASES = {
     "vendorname": "vendor", "picname": "nama_pic", "contact": "no_kontak", "contactno": "no_kontak",
     "contactnumber": "no_kontak", "phone": "no_kontak", "phonenumber": "no_kontak",
     "nibnumber": "nib_nomor", "materialgroup": "golongan", "nibdate": "nib_tanggal", "niblocation": "nib_lokasi",
+    "allocation": "nib_lokasi", "materialallocation": "nib_lokasi",
     "supportletternumber": "surat_dukungan_nomor", "supportletterdate": "surat_dukungan_tanggal",
     "supportletterquarrylocation": "surat_dukungan_lokasi_quarry", "quarrylocation": "surat_dukungan_lokasi_quarry",
     "iupnumber": "iup_nomor", "iupholdername": "iup_nama", "iupholder": "iup_nama", "iupname": "iup_nama",
